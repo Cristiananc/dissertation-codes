@@ -12,7 +12,6 @@ import copy
 # A flag that states which version of the DFS modified we would like to use. 
 # OUTPUT:
 def DFS(G, v, t,k, path, visited, flag=0):   
-    print(path) 
     # 1. Base Case: Sucess
     #If the current node is the target node and the length of the path - 1 is k, we have found
     #a desired path 
