@@ -1,3 +1,4 @@
+
 """
  This file contains the modified DFS algorithm for sampling the feasible trees.  
 """
@@ -5,38 +6,38 @@
 import math
 import random as rd
 import numpy as np
+import copy
 
 # INPUT:
 # A flag that states which version of the DFS modified we would like to use. 
 # OUTPUT:
-def DFS(G, v, t,k, path, visited, flag=0):
-    #Code refactored with AI assistance.
-    
+def DFS(G, v, t,k, path, visited, flag=0):   
+    print(path) 
     # 1. Base Case: Sucess
     #If the current node is the target node and the length of the path - 1 is k, we have found
     #a desired path 
-    if v == t and len(path) - 1 == k:
+    if v == t and len(path) == k:
         return path
     
     # 2. Base Case: Path too long
-    if len(path) - 1 > k:
+    if len(path) > k:
         return None
     
     # 3. Base Case: Target reached too early 
     #If the target node is reached before the length of the desired path, then no path is returned
-    if len(path) - 1 < k + 1 and v == t:
+    if len(path) < k and v == t:
         return None
     
     # 4. Observed Node Check (Existing "Infection Time" Logic)
     # If we hit a node that was already visited in a previous valid context
     # and the timing matches, we consider this path valid
-    if G.nodes[v]['inf_time'] != math.inf:
-        #If timings match, return path
-        if k -  G.nodes[v]['inf_time'] == len(path) - 1 and len(path) > 1:
-            return path
-        else:
-            return None
-    
+    if len(path) > 1 and (k -  G.nodes[v]['inf_time'] == len(path) - 1):
+        return path
+
+    #If the time doesn't match we return None
+    if G.nodes[v]['inf_time'] != math.inf and (k - G.nodes[v]['inf_time'] != len(path) - 1):
+        return None
+
     # 5. Set Infection Time
     # Only set this if it hasn't been set (implied by passing step 4)
     # Each unobserved node we pass in the path receives a infection time.
@@ -58,7 +59,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
 
         #In case we changed the inf time, reset it back to infinite
         if reset_inf_time:
-            G.nodes[v]['inf_time']
+            G.nodes[v]['inf_time'] = math.inf
         
         return None
 
@@ -95,4 +96,42 @@ def DFS(G, v, t,k, path, visited, flag=0):
     if reset_inf_time:
         G.nodes[v]['inf_time'] = math.inf
 
-    return None
+
+def find_k_length_path(G, s, t, k, flag=0):
+    visited = {}
+    for node in G.nodes:
+        visited[node] = False
+    return DFS(G, s, t, k, [s], visited, flag)
+
+def feasible_tree(G, infected_nodes, flag=0):
+    tree = []
+    for node in infected_nodes:
+        tree_aux = find_k_length_path(G, node, 0, G.nodes[node]['inf_time'], flag)
+        tree.append(tree_aux)
+    return tree
+
+
+def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
+  sampling = [T_initial]
+
+  for i in range(n):
+    T_current = sampling[i]
+    _
+    random_node_aux = rd.randrange(1, len(infected_nodes)) #Excludes the node 0, since it's the root of the tree
+    random_node = infected_nodes[random_node_aux]
+
+    #Delete the previous path from G
+    #Recall that all nodes in T_current[random_node_aux][1:-1] are unobserved nodes
+    for node in T_current[random_node_aux][1:-1]:
+      G.nodes[node]['inf_time'] = math.inf
+
+    #Find a new path for
+    new_path = find_k_length_path(G, random_node, 0, G.nodes[random_node]['inf_time'], flag)
+
+    # Modify the current state
+    T_current[random_node_aux] = new_path
+
+    # Append a unique copy of the current state to the sampling list
+    sampling.append(copy.deepcopy(T_current))
+
+  return sampling
