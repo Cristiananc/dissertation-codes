@@ -21,3 +21,11 @@ def excludeInfTime(G, p):
 
     return excluded_nodes, obs_infected_nodes
 
+
+# Deleting nodes we know were not infected from the graph
+def delete_susceptible(G):
+    node_statuses = nx.get_node_attributes(G, "status")
+    removable_indices = [i for i, x in node_statuses.items() if x == 'susceptible']
+    
+    for node in removable_indices:
+        G.remove_node(node)
