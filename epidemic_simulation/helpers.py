@@ -23,7 +23,7 @@ def excludeInfTime(G, p):
 
 
 # Deleting nodes we know were not infected from the graph
-def delete_susceptible(G):
+def delete_susceptibles(G):
     node_statuses = nx.get_node_attributes(G, "status")
     removable_indices = [i for i, x in node_statuses.items() if x == 'susceptible']
     
