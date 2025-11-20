@@ -115,7 +115,6 @@ def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
 
   for i in range(n):
     T_current = sampling[i]
-    _
     random_node_aux = rd.randrange(1, len(infected_nodes)) #Excludes the node 0, since it's the root of the tree
     random_node = infected_nodes[random_node_aux]
 
