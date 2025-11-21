@@ -135,3 +135,5 @@ def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
     sampling.append(copy.deepcopy(T_current))
 
   return sampling
+
+#Sampling with rejection

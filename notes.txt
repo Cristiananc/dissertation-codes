@@ -1,0 +1,2 @@
+TASKS TO DO:
+* Compare the percentages found with the truth.

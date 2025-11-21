@@ -4,7 +4,7 @@ from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
 from sample.sampling_trees import feasible_tree, sampling_trees
-import scipy as sp
+#import scipy as sp
 
 #Creating our initial example of a random network
 n = 20
@@ -24,6 +24,9 @@ excluded, infected_nodes = excludeInfTime(G, p_excluded)
 delete_susceptibles(G)
 
 T_initial = feasible_tree(G, infected_nodes)
+
+#Exclude a tree if it has a None path on it.
+#"Error: 'NoneType' object is not subscriptable
 while any(None in sublist for sublist in T_initial):
     T_initial = feasible_tree(G, infected_nodes)
 
@@ -35,8 +38,6 @@ nodes_prop = nodes_proportion(G, samplings, samplings_number)
 print(infected_nodes)
 print(nodes_prop)
 
+#Task to do:
+#Comparating with the real values
 
-"""
-Tasks to do: Exclude a tree if it has a None path on it.
-"Error: 'NoneType' object is not subscriptable
-"""

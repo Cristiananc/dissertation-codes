@@ -5,6 +5,12 @@ import numpy as np
 import networkx as nx
 import math
 
+"""
+The following algorithm calculates the events occuring in a outbreak 
+modeled as a discrete-time SIR in a static network. Here, we assume the 
+infection lasts one time step and transmission occurs with probability p.
+"""
+
 #INPUT: A graph G created with networkx, a list called initial_infecteds 
 # which represents the index-cases, a decimal p which represents the infection rate
 # and an integer n, that is the population size.

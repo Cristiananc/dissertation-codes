@@ -1,4 +1,12 @@
-#This file contains the auxiliary functions to perform the epidemic simulations 
+"""
+This file contains functions to generate the "partial information".
+The first function generates what we called "árvores marcadas". 
+After an outbreak occured in a fixed network, we only have partial information available, 
+i.e., only a part of the infection times are available. 
+Here, in particular, the missing data is missing at random, since we are selecting 
+a porcentage of information to erase from the set of nodes, where each one of them are equaly
+likely to be missing.
+"""
 import math
 import numpy as np
 import networkx as nx
