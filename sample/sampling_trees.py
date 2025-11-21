@@ -11,7 +11,9 @@ import copy
 # INPUT:
 # A flag that states which version of the DFS modified we would like to use. 
 # OUTPUT:
-def DFS(G, v, t,k, path, visited, flag=0):   
+def DFS(G, v, t,k, path, visited, flag=0): 
+    #Disclaimer: Code refactored with AI assistance.
+
     # 1. Base Case: Sucess
     #If the current node is the target node and the length of the path - 1 is k, we have found
     #a desired path 
@@ -115,7 +117,7 @@ def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
 
   for i in range(n):
     T_current = sampling[i]
-    random_node_aux = rd.randrange(1, len(infected_nodes)) #Excludes the node 0, since it's the root of the tree
+    random_node_aux = rd.randrange(0, len(infected_nodes)) 
     random_node = infected_nodes[random_node_aux]
 
     #Delete the previous path from G

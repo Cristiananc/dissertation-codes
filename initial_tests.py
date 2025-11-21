@@ -3,7 +3,7 @@ import networkx as nx
 from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
-from sample.sampling_tress import feasible_tree, sampling_trees
+from sample.sampling_trees import feasible_tree, sampling_trees
 import scipy as sp
 
 #Creating our initial example of a random network
@@ -24,6 +24,8 @@ excluded, infected_nodes = excludeInfTime(G, p_excluded)
 delete_susceptibles(G)
 
 T_initial = feasible_tree(G, infected_nodes)
+while any(None in sublist for sublist in T_initial):
+    T_initial = feasible_tree(G, infected_nodes)
 
 samplings_number = 100
 samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
