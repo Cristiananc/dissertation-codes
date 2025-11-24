@@ -7,7 +7,7 @@ from sample.sampling_trees import feasible_tree, sampling_trees
 #import scipy as sp
 
 #Creating our initial example of a random network
-n = 20
+n = 8
 p = 5/(n - 1)
 G = nx.erdos_renyi_graph(n, p)
 
@@ -29,15 +29,14 @@ T_initial = feasible_tree(G, infected_nodes)
 #"Error: 'NoneType' object is not subscriptable
 while any(None in sublist for sublist in T_initial):
     T_initial = feasible_tree(G, infected_nodes)
+print(T_initial)
+
+print(prob_tree(G, T_initial, beta))
 
 samplings_number = 100
 samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
 
 #Proportion of nodes found
 nodes_prop = nodes_proportion(G, samplings, samplings_number)
-print(infected_nodes)
 print(nodes_prop)
-
-#Task to do:
-#Comparating with the real values
 
