@@ -14,22 +14,22 @@ import copy
 def DFS(G, v, t,k, path, visited, flag=0): 
     #Disclaimer: Code refactored with AI assistance.
 
-    # 1. Base Case: Sucess
+    # Base Case: Sucess
     #If the current node is the target node and the length of the path - 1 is k, we have found
     #a desired path 
     if v == t and len(path) == k:
         return path
     
-    # 2. Base Case: Path too long
+    # Base Case: Path too long
     if len(path) > k:
         return None
     
-    # 3. Base Case: Target reached too early 
+    # Base Case: Target reached too early 
     #If the target node is reached before the length of the desired path, then no path is returned
     if len(path) < k and v == t:
         return None
     
-    # 4. Observed Node Check (Existing "Infection Time" Logic)
+    # Observed Node Check (Existing "Infection Time" Logic)
     # If we hit a node that was already visited in a previous valid context
     # and the timing matches, we consider this path valid
     if len(path) > 1 and (k -  G.nodes[v]['inf_time'] == len(path) - 1):
@@ -39,7 +39,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
     if G.nodes[v]['inf_time'] != math.inf and (k - G.nodes[v]['inf_time'] != len(path) - 1):
         return None
 
-    # 5. Set Infection Time
+    # Set Infection Time
     # Only set this if it hasn't been set (implied by passing step 4)
     # Each unobserved node we pass in the path receives a infection time.
     if G.nodes[v]['inf_time'] == math.inf:
@@ -51,7 +51,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
     
     visited[v] = True
 
-    # 6. Neighbor Handling
+    # Neighbor Handling
     neighbors  = list(G.neighbors(v))
 
     # Check in case the node doesn't have neighbors:
@@ -64,7 +64,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
         
         return None
 
-    # 7. The flag determines in which ordering the neighbors will be consider
+    # The flag determines in which ordering the neighbors will be consider
     # The default ordering is 0.
     if flag == 1:
         rd.shuffle(neighbors) #rd.shuffle is an in-place function
@@ -82,7 +82,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
         shuffled_list = np.random.choice(neighbors, len(neighbors), replace = False, p=probs)
         neighbors = shuffled_list.tolist()
 
-    # 7. Recursive Step
+    # Recursive Step
     for neighbor in neighbors:
         if not visited[neighbor]:
             result = DFS(G, neighbor, t, k, path + [neighbor], visited, flag)
@@ -90,7 +90,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
             if result:
                 return result
     
-    # 8. Backtracking
+    # Backtracking
     #The lines below deals with the process of backtracking in the search
     visited[v] = False
     # Only reset inf_time if We changed it in this specific call
@@ -135,3 +135,8 @@ def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
     sampling.append(copy.deepcopy(T_current))
 
   return sampling
+
+def metropolis_hastings_approach(T_initial, n):
+    sampling = [None]*n
+
+    return sampling
