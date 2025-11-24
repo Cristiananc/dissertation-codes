@@ -31,7 +31,7 @@ while any(None in sublist for sublist in T_initial):
     T_initial = feasible_tree(G, infected_nodes)
 print(T_initial)
 
-print(prob_tree(G, T_initial, beta))
+print(math.log(prob_tree(G, T_initial, beta)))
 
 samplings_number = 100
 samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
