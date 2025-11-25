@@ -3,7 +3,7 @@ import networkx as nx
 from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
-from sample.sampling_trees import feasible_tree, sampling_trees
+from sample.sampling_trees import *
 #import scipy as sp
 
 #Creating our initial example of a random network
@@ -26,12 +26,11 @@ delete_susceptibles(G)
 T_initial = feasible_tree(G, infected_nodes)
 
 #Exclude a tree if it has a None path on it.
-#"Error: 'NoneType' object is not subscriptable
+#"Error: 'NoneType' object is not subscri table
 while any(None in sublist for sublist in T_initial):
     T_initial = feasible_tree(G, infected_nodes)
-print(T_initial)
+#print(T_initial)
 
-print(math.log(prob_tree(G, T_initial, beta)))
 
 samplings_number = 100
 samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
@@ -40,3 +39,4 @@ samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=
 nodes_prop = nodes_proportion(G, samplings, samplings_number)
 print(nodes_prop)
 
+metropolis_hastings_approach(G, T_initial, samplings_number, infected_nodes, flag=2)

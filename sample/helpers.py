@@ -18,13 +18,13 @@ def nodes_proportion(G, samplings, samplings_number):
 
     return nodes_prop
 
-def prob_tree(G, T, beta):
+def prob_tree_log(G, T, beta):
     """
-    Returns the probability of a transmission tree.
+    Returns the log probability of a transmission tree.
     """
 
     succes_events =reduce(lambda count, l: count + len(l) - 1, T, 0)
-    total_events = len(list(G.degree[0]))
+    total_events = G.degree[0]
 
     for lis in T[1:]:
         for node in lis[0:-1]:
@@ -32,9 +32,9 @@ def prob_tree(G, T, beta):
     
     failed_events = total_events - succes_events
 
-    prob = beta**(succes_events)*(1 - beta)**failed_events
+    prob_log = math.log(beta**(succes_events)*(1 - beta)**failed_events)
 
-    return prob
+    return prob_log
 
 
 def prob_path_log(G, path):
