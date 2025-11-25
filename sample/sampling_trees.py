@@ -7,6 +7,7 @@ import math
 import random as rd
 import numpy as np
 import copy
+from helpers import *
 
 # INPUT:
 # A flag that states which version of the DFS modified we would like to use. 
@@ -136,7 +137,46 @@ def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
 
   return sampling
 
-def metropolis_hastings_approach(T_initial, n):
-    sampling = [None]*n
+def metropolis_hastings_approach(G, T_initial, n, infected_nodes, flag=0):
+    #First choose an arbitrary state for X_0
+    sampling = [T_initial]
+    beta = 0.4
+
+    G_aux = copy.deepcopy(G)
+    
+    for i in range(n):
+        T_current = sampling[i]
+        
+        #Simulate a value X_prop
+        random_node_aux = rd.randrange(0, len(infected_nodes)) 
+        random_node = infected_nodes[random_node_aux]
+
+        #Delete the previous path from G_aux
+        #Recall that all nodes in T_current[random_node_aux][1:-1] are unobserved nodes
+        for node in T_current[random_node_aux][1:-1]:
+            G_aux.nodes[node]['inf_time'] = math.inf
+
+        #Find a new path for the random node
+        new_path = find_k_length_path(G_aux, random_node, 0, G_aux.nodes[random_node]['inf_time'], flag)
+
+        T_aux = copy.deepcopy(T_current)
+        T_aux[random_node_aux] = new_path
+
+        #Compute the acceptance probability 
+        prob_tree = prob_tree_log(G_aux, T_aux, beta) - prob_tree_log(G, T_current, beta) 
+        prob_path = prob_path_log(G_aux, new_path) - prob_path_log(G, T_current[random_node])
+        alpha = min(0, prob_tree + prob_path)
+
+
+        p_uniform = math.log(np.random.uniform())
+
+        # We accept the proposed state
+        if p_uniform < alpha:
+            # Modify the current state
+            T_current[random_node_aux] = new_path
+            G = G_aux
+
+            # Append a unique copy of the current state to the sampling list
+            sampling.append(copy.deepcopy(T_current))
 
     return sampling
