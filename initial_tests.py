@@ -7,7 +7,7 @@ from sample.sampling_trees import *
 #import scipy as sp
 
 #Creating our initial example of a random network
-n = 8
+n = 10
 p = 5/(n - 1)
 G = nx.erdos_renyi_graph(n, p)
 
@@ -29,14 +29,16 @@ T_initial = feasible_tree(G, infected_nodes)
 #"Error: 'NoneType' object is not subscri table
 while any(None in sublist for sublist in T_initial):
     T_initial = feasible_tree(G, infected_nodes)
-#print(T_initial)
+print(T_initial)
 
 
 samplings_number = 100
-samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
+#samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
 
 #Proportion of nodes found
-nodes_prop = nodes_proportion(G, samplings, samplings_number)
-print(nodes_prop)
+#nodes_prop = nodes_proportion(G, samplings, samplings_number)
+#print(nodes_prop)
 
-metropolis_hastings_approach(G, T_initial, samplings_number, infected_nodes, flag=2)
+samplings = metropolis_hastings_approach(G, T_initial, samplings_number, infected_nodes, flag=2)
+nodes_prop = nodes_proportion(G, samplings)
+print(nodes_prop)

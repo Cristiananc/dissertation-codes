@@ -33,8 +33,8 @@ def fast_SIR(G, initial_infecteds, p, n):
         event = {'node': u, 'time': 1, 'action': 'transmit'}
         Q.append(event)
 
-    #Updating infection time for initial infected nodes
-    G.nodes[u]['inf_time'] = 1
+        #Updating infection time for initial infected nodes
+        G.nodes[u]['inf_time'] = 1
 
     #While the list of events is not empty we continue the transmission process
     while Q:

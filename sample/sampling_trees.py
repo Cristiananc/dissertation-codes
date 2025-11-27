@@ -7,7 +7,8 @@ import math
 import random as rd
 import numpy as np
 import copy
-from helpers import *
+from functools import reduce 
+
 
 # INPUT:
 # A flag that states which version of the DFS modified we would like to use. 
@@ -137,46 +138,126 @@ def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
 
   return sampling
 
-def metropolis_hastings_approach(G, T_initial, n, infected_nodes, flag=0):
-    #First choose an arbitrary state for X_0
-    sampling = [T_initial]
-    beta = 0.4
 
-    G_aux = copy.deepcopy(G)
+
+def prob_tree_log(G, T, beta):
+    """
+    Returns the log probability of a transmission tree.
+    """
+
+    succes_events = reduce(lambda count, l: count + len(l) - 1, T, 0)
+    total_events = G.degree[0]
+
+    for lis in T[1:]:
+        for node in lis[0:-1]:
+            total_events += G.degree[node] - 1
+    
+    failed_events = total_events - succes_events
+
+    prob_log = math.log(beta**(succes_events)*(1 - beta)**failed_events)
+
+    return prob_log
+
+
+def prob_path_log(G, path):
+    """
+    This is based on the Degree-Biased Random Walk
+    Returns the log probability of a path according to the degree of the nodes.
+    It should return Inf if a path does not exist.
+    Disclaimer: This code was refactored with AI assistance.
+    """
+    log_prob = 0
+
+    if len(path) < 2:
+        return log_prob
+  
+    #Iterating using a slide window
+    for i in range(len(path) - 1):
+      u = path[i]
+      v = path[i + 1]
+
+    #Check if nodes exist in the graph:
+    if u not in G or v not in G:
+      return math.inf
+
+    #Check if edge exists in the graph
+    if u not in G[v]:
+      return math.inf
+      
+    neighbors = list(G.neighbors(u))
+    norm_factor = sum([G.degree[i] for i in neighbors]) 
+
+    if norm_factor == 0:
+      return math.inf 
+
+    numerator = G.degree(v)
+    log_prob += math.log(numerator) - math.log(norm_factor) 
+      
+    return log_prob
+
+
+def metropolis_hastings_approach(G, T_initial, n, infected_nodes, flag=0):
+    #Initialize Current State
+    current_T = copy.deepcopy(T_initial)
+    current_G = copy.deepcopy(G)
+
+    accepted_count = 0
+
+    #Initialize Sampling 
+    sampling = [current_T]
+    beta = 0.2
     
     for i in range(n):
-        T_current = sampling[i]
+        #Create proposal objects based on current state
+        proposal_T = copy.deepcopy(current_T)
+        proposal_G = copy.deepcopy(current_G)
         
-        #Simulate a value X_prop
+        #Simulate a x_prop (proposal step)
         random_node_aux = rd.randrange(0, len(infected_nodes)) 
         random_node = infected_nodes[random_node_aux]
 
-        #Delete the previous path from G_aux
+        #Modify the proposal graph (delete previous path)
         #Recall that all nodes in T_current[random_node_aux][1:-1] are unobserved nodes
-        for node in T_current[random_node_aux][1:-1]:
-            G_aux.nodes[node]['inf_time'] = math.inf
+        for node in current_T[random_node_aux][1:-1]:
+            proposal_G.nodes[node]['inf_time'] = math.inf
 
-        #Find a new path for the random node
-        new_path = find_k_length_path(G_aux, random_node, 0, G_aux.nodes[random_node]['inf_time'], flag)
+        #Find a new path for the random node using the proposal graph
+        new_path = find_k_length_path(
+            proposal_G, 
+            random_node, 
+            0, 
+            proposal_G.nodes[random_node]['inf_time'], 
+            flag
+        )
 
-        T_aux = copy.deepcopy(T_current)
-        T_aux[random_node_aux] = new_path
+        # Update the proposal time 
+        proposal_T[random_node_aux] = new_path
 
         #Compute the acceptance probability 
-        prob_tree = prob_tree_log(G_aux, T_aux, beta) - prob_tree_log(G, T_current, beta) 
-        prob_path = prob_path_log(G_aux, new_path) - prob_path_log(G, T_current[random_node])
-        alpha = min(0, prob_tree + prob_path)
+        prob_tree_prop = prob_tree_log(proposal_G, proposal_T, beta)
+        prob_tree_curr = prob_tree_log(current_G, current_T, beta)
 
-
+        prob_path_prop = prob_path_log(proposal_G, new_path)
+        prob_path_curr = prob_path_log(current_G, current_T[random_node_aux])
+        
+        log_alpha = (prob_tree_prop - prob_tree_curr) + (prob_path_prop - prob_path_curr)
+        
+        # Acceptance threshold
+        alpha = min(0, log_alpha)
         p_uniform = math.log(np.random.uniform())
 
         # We accept the proposed state
         if p_uniform < alpha:
             # Modify the current state
-            T_current[random_node_aux] = new_path
-            G = G_aux
+            current_T = proposal_T
+            current_G = proposal_G
 
-            # Append a unique copy of the current state to the sampling list
-            sampling.append(copy.deepcopy(T_current))
+            #Counter to track acceptance
+            accepted_count += 1
+
+        # Append a unique copy of the current state to the sampling list
+        sampling.append(copy.deepcopy(current_T))
+
+    print(f"Final Acceptance Rate: {accepted_count / n:.2%}")
 
     return sampling
