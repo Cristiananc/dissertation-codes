@@ -1,12 +1,19 @@
-from functools import reduce 
+# Importing the required modules and packages
+import networkx as nx
+from epidemic_simulation.sir_simulation import fast_SIR
+from epidemic_simulation.helpers import *
+from sample.helpers import *
+from sample.sampling_trees import *
+from sample.naive_sampling import naive_sampling
+#import scipy as sp
 
-a = [ [0], [1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 2]]
-print(reduce(lambda count, l: count + len(l) - 1, a, 0))
+#Creating our initial example of a random network
+n = 10
+p = 5/(n - 1)
+G = nx.erdos_renyi_graph(n, p)
 
-print(a[1:-1])
+beta = 0.4
+fast_SIR(G, [0], beta)
 
-lista = [None]*5
-print(lista)
-
-lista[4] = 2
-print(lista)
+infection_times = nx.get_node_attributes(G, "inf_time")
+print(infection_times)

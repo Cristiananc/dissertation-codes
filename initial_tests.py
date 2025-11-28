@@ -4,6 +4,7 @@ from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
 from sample.sampling_trees import *
+from sample.naive_sampling import naive_sampling
 #import scipy as sp
 
 #Creating our initial example of a random network
@@ -12,7 +13,7 @@ p = 5/(n - 1)
 G = nx.erdos_renyi_graph(n, p)
 
 beta = 0.4
-fast_SIR(G, [0], beta, n)
+fast_SIR(G, [0], beta)
 
 #Selecting a fraction of nodes that will not be observed.
 p_excluded = 0.2
@@ -39,6 +40,10 @@ samplings_number = 100
 #nodes_prop = nodes_proportion(G, samplings, samplings_number)
 #print(nodes_prop)
 
-samplings = metropolis_hastings_approach(G, T_initial, samplings_number, infected_nodes, flag=2)
-nodes_prop = nodes_proportion(G, samplings)
-print(nodes_prop)
+#samplings = metropolis_hastings_approach(G, T_initial, samplings_number, infected_nodes, flag=2)
+#nodes_prop = nodes_proportion(G, samplings)
+#print(nodes_prop)
+
+#Naive sampling
+naive_sampling = naive_sampling(G, samplings_number, infected_nodes, [0], beta, n)
+print(nodes_proportion(G, naive_sampling))

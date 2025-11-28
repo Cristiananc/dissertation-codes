@@ -26,7 +26,6 @@ def check_feasibility_graphs(G, T, infected_nodes):
         if G.nodes[node]['inf_time'] == T.nodes[node]['inf_time']:
             continue
         else:
-            print("The tree provided is not a feasible tree!")
             return False
     
     return True
