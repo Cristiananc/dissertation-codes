@@ -83,5 +83,4 @@ def fast_SIR(G: nx.Graph, initial_infecteds: list, p: float):
 
                             status[v] = State.INFECTED.value
                             G.nodes[v]['status'] = State.INFECTED.value
-                
-    return G
+                            

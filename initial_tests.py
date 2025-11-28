@@ -5,7 +5,7 @@ from epidemic_simulation.helpers import *
 from sample.helpers import *
 from sample.sampling_trees import *
 from sample.naive_sampling import naive_sampling
-#import scipy as sp
+import time
 
 #Creating our initial example of a random network
 n = 10
@@ -45,5 +45,8 @@ samplings_number = 100
 #print(nodes_prop)
 
 #Naive sampling
+start_time = time.time()
 naive_sampling = naive_sampling(G, samplings_number, infected_nodes, [0], beta, n)
+print("--- %s seconds ---" % (time.time() - start_time))
 print(nodes_proportion(G, naive_sampling))
+
