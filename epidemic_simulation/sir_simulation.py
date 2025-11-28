@@ -1,94 +1,87 @@
-# This file contains the code to perform a simulation for the Network SIR in discrete time
-#The code is based on the one provided by the book by (Kiss, Miller, Simon) on page 386
-
-import numpy as np
+"""
+This file contains the code to perform simulations for the Network SIR discrete-time model.
+The code is based on the one provided by the book by (Kiss, Miller, Simon) on page 386.
+Disclaimer: The code was refactored with AI assistance (more speciffically 
+on suggestions of the heapq usage and enum addition).
+"""
 import networkx as nx
+import numpy as np
+import heapq
 import math
+from enum import Enum
 
-"""
-The following algorithm calculates the events occuring in a outbreak 
-modeled as a discrete-time SIR in a static network. Here, we assume the 
-infection lasts one time step and transmission occurs with probability p.
-"""
+class State(Enum):
+    SUSCEPTIBLE = "susceptible"
+    INFECTED = "infected"
+    RECOVERED = "recovered"
 
-#INPUT: A graph G created with networkx, a list called initial_infecteds 
-# which represents the index-cases, a decimal p which represents the infection rate
-# and an integer n, that is the population size.
-#OUTPUT: It returns a list with the times, an another three lists for the number of
-# individuals in each compartment for each time. 
-def fast_SIR(G, initial_infecteds, p, n):
-    #S,I and R keep track of number of nodes in each state
-    S = [n]
-    I = [0]
-    R = [0]
-    Q = [] #Empty priority queue
+class Action(Enum):
+    TRANSMIT = 1
+    RECOVER = 2
 
-    times = [0]
+def fast_SIR(G: nx.Graph, initial_infecteds: list, p: float):
+    """
+    Simulates a discrete-time SIR outbreak on a static network using a priority queue. 
+    We assume the infection lasts one time step and transmission occurs with probability p.
 
+    Input:  
+        G : a networkx graphs.
+        initial_infecteds: list of node indices starting the infection. 
+        p: transmission probability.
+    
+    Output:
+    tuple: (times, S, I, R) lists tracking the history of the outbreak.
+    """
+
+    #Queue structure: (time, action_type, node)
+    event_queue = [] 
+
+    #Initialize graph attributes
     nx.set_node_attributes(G, "susceptible", "status")
-
     nx.set_node_attributes(G, math.inf, "inf_time")
 
+    #Local tracker (reading dict is faster than G.nodes(v)[attr])
+    status = {node : State.SUSCEPTIBLE.value for node in G.nodes()}
+    inf_times = {node : math.inf for node in G.nodes()}
+
     for u in initial_infecteds:
-        event = {'node': u, 'time': 1, 'action': 'transmit'}
-        Q.append(event)
+        status[u] = State.INFECTED.value
+        inf_times[u] = 1
 
         #Updating infection time for initial infected nodes
         G.nodes[u]['inf_time'] = 1
 
-    #While the list of events is not empty we continue the transmission process
-    while Q:
-        Q = sorted(Q, key=lambda d: d['time'])
-        event = Q[0]  #earliest remaining event in Q
+        #Schedule next transmission events
+        heapq.heappush(event_queue, (1, Action.TRANSMIT.value, u))
+    
 
+    while event_queue:
+        t, action, u = heapq.heappop(event_queue)
 
-        if event['action'] == 'transmit':
-            process_trans_SIR(G, event['node'], S, I, R, times, event['time'], p, Q)
+        if action == Action.RECOVER.value:
+            status[u] = State.RECOVERED.value
+            G.nodes[u]["status"] = State.RECOVERED.value
 
-        else:
-            process_rec_SIR(G, event['node'], event['time'], times, S, I, R)
+        elif action == Action.TRANSMIT.value:
+            #Schedule recovery for node u at t+1
+            heapq.heappush(event_queue, (t+1, Action.RECOVER.value, u))
 
-        #Once we are acessing this event we remove it from priority queue
-        #of course we need to check what is the best data structure to do this
-        Q.pop(0)
+            for v in G.neighbors(u):
 
+                if status[v] == State.SUSCEPTIBLE.value:
+                    new_inf_time = t + 1
 
-    return times, S, I, R
+                    if new_inf_time < inf_times[v]:
+                        #Bernoulli trial
+                        if np.random.uniform() < p:
+                            #Update infection time (local and graph)
+                            inf_times[v] = new_inf_time
+                            G.nodes[v]['inf_time'] = new_inf_time
 
-def process_rec_SIR(G, u, t, times, S, I, R):
+                            #Schedule transmission
+                            heapq.heappush(event_queue, (new_inf_time, Action.TRANSMIT.value, v))
 
-    #updating the number of nodes in each compartment
-    S.append(S[-1])
-    R.append(R[-1] + 1)
-    I.append(I[-1] - 1)
-
-    times.append(t)
-
-    G.nodes[u]["status"] = 'recovered'
-
-def process_trans_SIR(G, u, S, I, R, times, t, p, Q):
-    #updating the number of nodes in each compartment
-    S.append(S[-1] - 1)
-    R.append(R[-1])
-    I.append(I[-1] + 1)
-
-    times.append(t)
-
-    G.nodes[u]["status"] = 'infected'
-
-    #Creating an event of recovery
-    newEvent = {'node': u, 'time': t + 1, 'action': 'recover'}
-    Q.append(newEvent)
-
-    for v in G.neighbors(u):
-
-        if G.nodes[v]["status"] == 'susceptible':
-            inf_time = t + 1
-
-            if inf_time < G.nodes[v]['inf_time']:
-                aux = np.random.uniform()
-
-                if aux < p:
-                    newEvent = {'node': v, 'time': inf_time, 'action': 'transmit'}
-                    Q.append(newEvent)
-                    G.nodes[v]['inf_time'] = inf_time
+                            status[v] = State.INFECTED.value
+                            G.nodes[v]['status'] = State.INFECTED.value
+                
+    return G
