@@ -18,16 +18,15 @@ class Model(Enum):
     SMALL_WORLD = 'small_world'
 
 sizes = [20, 50, 100]
-instances = 5
 
-def generate_graphs(sizes, model, instances):
+def generate_graphs(sizes, model):
 
     for size in sizes:
 
         file_path = 'data/graphs/' + str(size) + '/G_' + model 
 
         #For each size we generate 10 instances of the graph.
-        for j in range(instances):
+        for j in range(5):
 
             if model == Model.RANDOM.value:
                 #The average degree <k> of a node is five.
@@ -46,7 +45,7 @@ def generate_graphs(sizes, model, instances):
 
 
 #First we generate the random graphs
-generate_graphs(sizes, Model.RANDOM.value, instances)
+#generate_graphs(sizes, Model.RANDOM.value, instances)
 
 #Generating small-world graphs
 
