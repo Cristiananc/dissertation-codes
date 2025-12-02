@@ -37,7 +37,7 @@ samplings_number = 100
 #samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
 
 #Proportion of nodes found
-#nodes_prop = nodes_proportion(G, samplings, samplings_number)
+#nodes_prop = nodes_proportion(G, samplings)
 #print(nodes_prop)
 
 #samplings = metropolis_hastings_approach(G, T_initial, samplings_number, infected_nodes, flag=2)
@@ -46,7 +46,6 @@ samplings_number = 100
 
 #Naive sampling
 start_time = time.time()
-naive_sampling = naive_sampling(G, samplings_number, infected_nodes, [0], beta, n)
+naive_sampling = naive_sampling(G, samplings_number, infected_nodes, [0])
 print("--- %s seconds ---" % (time.time() - start_time))
-print(nodes_proportion(G, naive_sampling))
-
+print(nodes_proportion_list(G, naive_sampling))
