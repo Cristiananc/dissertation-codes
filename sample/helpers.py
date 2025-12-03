@@ -53,7 +53,11 @@ def check_feasibility_tree(G, T):
     """
     Checks if a given tree in list of lists format is feasible.
     """
-    return None
+    for sublist in T:
+        if not G.nodes[sublist[0]]['inf_time'] - G.nodes[sublist[-1]]['inf_time'] == len(sublist) - 1:
+            return False
+
+    return True
 
 def prob_tree_log(G, T, beta):
     """
