@@ -6,9 +6,10 @@ from sample.helpers import *
 from sample.sampling_trees import *
 from sample.naive_sampling import naive_sampling
 import time
+from sample.sampling_trees_complete import TreeSampler
 
 #Creating our initial example of a random network
-n = 20
+n = 25
 p = 5/(n - 1)
 G = nx.erdos_renyi_graph(n, p)
 
@@ -16,10 +17,8 @@ beta = 0.4
 fast_SIR(G, [0], beta)
 
 #Selecting a fraction of nodes that will not be observed.
-p_excluded = 0.2
+p_excluded = 0.4
 excluded, infected_nodes = excludeInfTime(G, p_excluded)
-print(nx.get_node_attributes(G, "inf_time"))
-#print(nx.adjacency_matrix(G))
 
 #Deleting nodes that we known were not infected from the graph.
 delete_susceptibles(G)
@@ -28,12 +27,12 @@ T_initial = feasible_tree(G, infected_nodes)
 
 #Exclude a tree if it has a None path on it.
 #"Error: 'NoneType' object is not subscri table
-while any(None in sublist for sublist in T_initial):
+while any(sublist is None for sublist in T_initial):
     T_initial = feasible_tree(G, infected_nodes)
 print(T_initial)
 #print(check_feasibility_tree(G,T_initial))
 
-samplings_number = 100
+samplings_number = 10
 #samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
 
 #Proportion of nodes found
@@ -51,8 +50,11 @@ samplings_number = 100
 #print(nodes_proportion_list(G, naive_sampling))
 
 #Adding new operations to the sampling 
-samplings = sampling_trees_complete_version(G,T_initial, samplings_number, infected_nodes, flag=0)
+#Initialize
+sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
 
-if samplings is not None:
-    nodes_prop = nodes_proportion(G, samplings)
-    print(nodes_prop)
+#Run
+sampling = sampler.run(n_iterations=samplings_number)
+print(sampling)
+print(f"Observed infection times: {nx.get_node_attributes(G, "inf_time")}")
+print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")

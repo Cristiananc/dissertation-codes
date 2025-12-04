@@ -6,6 +6,10 @@ def nodes_proportion(G, samplings):
     Returns the proportion of each node in a sampling of feasible trees in the format
     of list of lists.
     """
+
+    if samplings == None:
+        return 
+    
     nodes_prop = {x: 0 for x in list(G.nodes)}
     for node in G.nodes:
         for lis in samplings:
@@ -15,7 +19,7 @@ def nodes_proportion(G, samplings):
     n = len(samplings)
     
     for node in nodes_prop:
-        nodes_prop[node] = nodes_prop[node]/n
+        nodes_prop[node] = nodes_prop[node]/ n
     return nodes_prop
 
 def nodes_proportion_list(G, samplings):
