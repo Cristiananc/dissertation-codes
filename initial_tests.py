@@ -15,6 +15,7 @@ G = nx.erdos_renyi_graph(n, p)
 
 beta = 0.4
 fast_SIR(G, [0], beta)
+print(f"Real infection times: {nx.get_node_attributes(G, "inf_time")}")
 
 #Selecting a fraction of nodes that will not be observed.
 p_excluded = 0.4
@@ -32,7 +33,7 @@ while any(sublist is None for sublist in T_initial):
 print(T_initial)
 #print(check_feasibility_tree(G,T_initial))
 
-samplings_number = 10
+samplings_number = 100
 #samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
 
 #Proportion of nodes found
@@ -55,6 +56,5 @@ sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
 
 #Run
 sampling = sampler.run(n_iterations=samplings_number)
-print(sampling)
 print(f"Observed infection times: {nx.get_node_attributes(G, "inf_time")}")
 print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")

@@ -39,9 +39,17 @@ class TreeSampler:
             if not self.nodes_to_sample:
                 break #Safety check
 
-            rand_idx = rd.randrange(0, len(self.nodes_to_sample))
-            node = self.nodes_to_sample[rand_idx]
+            p = np.random.uniform()
+
+            if p < 1/3:
+                #Addition operation
+                rand_idx = rd.randrange(0, len(self.nodes_to_sample))
+                node = self.nodes_to_sample[rand_idx]
+                self._add_neighbor(node)
         
+            elif p < 2/3:
+                #Delete operation 
+
             if node in self.infected_nodes:
                 self._handle_observed_nodes(node)
         
@@ -56,7 +64,7 @@ class TreeSampler:
 
         return self.samplings
 
-    # --------- Helper methods ------------        
+    # --------- Helper methods ------------ #
 
     def _get_path_index_for_node(self, node):
         #Finds the index in T_current where the path starts with node
@@ -75,9 +83,9 @@ class TreeSampler:
     def _handle_unobserved_leaf(self, node):
         # Logic for unobserved leaves: 1/3 add, 1/3 change path, 1/3 delete path.
         p = np.random.uniform()
-        if p < 1/3:
+        if p < 0:
             self._add_neighbor(node)
-        elif p < 2/3:
+        elif p < 0:
             self._change_path(node)
         else:
             self._delete_node(node)
@@ -101,7 +109,7 @@ class TreeSampler:
             for descendant in descendants:
 
                 if descendant in self.infected_nodes:
-                        continue
+                    continue
 
                 if descendant in self.nodes_to_sample:
                     self.nodes_to_sample.remove(descendant)
@@ -129,8 +137,11 @@ class TreeSampler:
 
             if n not in self.intermediate_nodes:
                 self.intermediate_nodes.append(n)
+            
+            if n not in self.nodes_to_sample:
+                self.nodes_to_sample.append(n)
     
-    # ---------- Operations function ---------------
+    # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         #print("Attempting to change path ...")
 
@@ -161,7 +172,7 @@ class TreeSampler:
         new_node = neighbors[rd.randrange(0, len(neighbors))]
 
         if self.G.nodes[new_node]['inf_time'] == math.inf:
-            print(f"New node added: {new_node}")
+            #print(f"New node added: {new_node}")
             self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
             #Update state
