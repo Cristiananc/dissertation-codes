@@ -15,13 +15,12 @@ class TreeSampler:
     def __init__(self, G, T_initial, infected_nodes, flag=0):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
-        self.infected_nodes = infected_nodes  #The fixed observed nodes
+        self.infected_nodes = infected_nodes 
         self.flag = flag
 
         self.nodes_to_sample = infected_nodes
         self.unobserved_leaves = []
         self.samplings = [T_initial]
-        self.intermediate_nodes = []
 
         #Adding intermediate nodes to our list of possible nodes to sample
         #Initially we don't have unobserved nodes as leaves, hence the respective list remains empty.
@@ -29,7 +28,7 @@ class TreeSampler:
             if not path: continue
             for node in path:
                 if node not in self.infected_nodes and node not in self.nodes_to_sample:
-                    self.intermediate_nodes.append(node)
+                    self.nodes_to_sample.append(node)
         
         self.nodes_to_sample += self.intermediate_nodes
 
