@@ -30,8 +30,6 @@ class TreeSampler:
                 if node not in self.infected_nodes and node not in self.nodes_to_sample:
                     self.nodes_to_sample.append(node)
         
-        self.nodes_to_sample += self.intermediate_nodes
-
     def run(self, n_iterations):
         if self.T_current == [[0]]:
             return None
@@ -96,9 +94,6 @@ class TreeSampler:
             if intermediate_node in self.nodes_to_sample:
                 self.nodes_to_sample.remove(intermediate_node)
 
-            if intermediate_node in self.intermediate_nodes:
-                self.intermediate_nodes.remove(intermediate_node)
-
             #Remove their descendants as well
             descendants = nx.descendants(self.G, intermediate_node)
 
@@ -130,9 +125,6 @@ class TreeSampler:
             #If a leaf becomes part of a path for the new_node, it is no longer a leaf
             if n in self.unobserved_leaves:
                 self.unobserved_leaves.remove(n)
-
-            if n not in self.intermediate_nodes:
-                self.intermediate_nodes.append(n)
             
             if n not in self.nodes_to_sample:
                 self.nodes_to_sample.append(n)
@@ -187,8 +179,21 @@ class TreeSampler:
         if t_index != -1:
             #print(f"Node deleted: {node}")
 
+            # Delete path from T_current 
             del self.T_current[t_index]
             self.G.nodes[node]['inf_time'] = math.inf
 
-            self.nodes_to_sample.remove(node)
+#           try:
+            list_index = self.nodes_to_sample.index(node)
+#           except ValueError:
+#                # If the node was already removed (e.g., by a path change fix), just skip
+#                return
+            
+            #Swap the element
+            last_element = self.nodes_to_sample[-1]
+            self.nodes_to_sample[list_index] = last_element
+
+            self.nodes_to_sample.pop()
+
+
             self.unobserved_leaves.remove(node)
