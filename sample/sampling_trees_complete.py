@@ -7,19 +7,20 @@ import random as rd
 import numpy as np
 import networkx as nx
 import copy
+from tqdm import tqdm
+from time import sleep
 from .sampling_trees import find_k_length_path
 
 class TreeSampler:
     def __init__(self, G, T_initial, infected_nodes, flag=0):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
-        self.infected_nodes = infected_nodes  #The fixed observed nodes
+        self.infected_nodes = infected_nodes 
         self.flag = flag
 
         self.nodes_to_sample = infected_nodes
         self.unobserved_leaves = []
         self.samplings = [T_initial]
-        self.intermediate_nodes = []
 
         #Adding intermediate nodes to our list of possible nodes to sample
         #Initially we don't have unobserved nodes as leaves, hence the respective list remains empty.
@@ -27,36 +28,54 @@ class TreeSampler:
             if not path: continue
             for node in path:
                 if node not in self.infected_nodes and node not in self.nodes_to_sample:
-                    self.intermediate_nodes.append(node)
+                    self.nodes_to_sample.append(node)
         
-        self.nodes_to_sample += self.intermediate_nodes
-
     def run(self, n_iterations):
         if self.T_current == [[0]]:
             return None
 
-        for _ in range(n_iterations):
+        for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break #Safety check
 
-            rand_idx = rd.randrange(0, len(self.nodes_to_sample))
-            node = self.nodes_to_sample[rand_idx]
-        
-            if node in self.infected_nodes:
-                self._handle_observed_nodes(node)
-        
-            elif node in self.unobserved_leaves:
-                self._handle_unobserved_leaf(node)
+            p = np.random.uniform()
 
+            if p < 1/3:
+                #Addition operation
+                node_addition = self._choose_random_node(self.nodes_to_sample)
+                self._add_neighbor(node_addition)
+        
+            elif p < 2/3:
+                #Changing path operation
+                node_change_path = self._choose_random_node(self.infected_nodes)
+                self._change_path(node_change_path)
+
+            #Delete operation 
             else:
-                self._handle_intermediate_node(node)
+                if len(self.unobserved_leaves) > 0:
+                    node_delete = self._choose_random_node(self.unobserved_leaves)
+                    self._delete_node(node_delete)
+                else:
+                    q = np.random.uniform()
+                    if q < 0.5:
+                        node_addition = self._choose_random_node(self.nodes_to_sample)
+                        self._add_neighbor(node_addition)
+
+                    else:
+                        node_change_path = self._choose_random_node(self.infected_nodes)
+                        self._change_path(node_change_path)
 
             #Record state
             self.samplings.append(copy.deepcopy(self.T_current))
+            sleep(0.01)
 
         return self.samplings
 
-    # --------- Helper methods ------------        
+    # --------- Helper methods ------------ #
+
+    def _choose_random_node(self, list_of_nodes):
+        rand_idx = rd.randrange(0, len(list_of_nodes))
+        return list_of_nodes[rand_idx]
 
     def _get_path_index_for_node(self, node):
         #Finds the index in T_current where the path starts with node
@@ -64,36 +83,16 @@ class TreeSampler:
             if path and path[0] == node:
                 return i
         return -1
-
-    def _handle_observed_nodes(self, node):
-        # Logic for observed nodes: 
-        if np.random.uniform() < 0.5:
-            self._change_path(node)
-        else:
-            self._add_neighbor(node)
-
-    def _handle_unobserved_leaf(self, node):
-        # Logic for unobserved leaves: 1/3 add, 1/3 change path, 1/3 delete path.
-        p = np.random.uniform()
-        if p < 1/3:
-            self._add_neighbor(node)
-        elif p < 2/3:
-            self._change_path(node)
-        else:
-            self._delete_node(node)
     
-    def _handle_intermediate_node(self, node):
-        #The logic for intermediate unobserved nodes is addition of a neighbor node
-        self._add_neighbor(node)
-
     def _clean_intermediate_nodes(self, index):
         current_path = self.T_current[index]
 
         for intermediate_node in current_path[1:-1]:
             
-            self.G.nodes[intermediate_node]['inf_time'] = math.inf          
-            self.nodes_to_sample.remove(intermediate_node)
-            self.intermediate_nodes.remove(intermediate_node)
+            self.G.nodes[intermediate_node]['inf_time'] = math.inf       
+
+            if intermediate_node in self.nodes_to_sample:
+                self.nodes_to_sample.remove(intermediate_node)
 
             #Remove their descendants as well
             descendants = nx.descendants(self.G, intermediate_node)
@@ -101,7 +100,7 @@ class TreeSampler:
             for descendant in descendants:
 
                 if descendant in self.infected_nodes:
-                        continue
+                    continue
 
                 if descendant in self.nodes_to_sample:
                     self.nodes_to_sample.remove(descendant)
@@ -126,11 +125,11 @@ class TreeSampler:
             #If a leaf becomes part of a path for the new_node, it is no longer a leaf
             if n in self.unobserved_leaves:
                 self.unobserved_leaves.remove(n)
-
-            if n not in self.intermediate_nodes:
-                self.intermediate_nodes.append(n)
+            
+            if n not in self.nodes_to_sample:
+                self.nodes_to_sample.append(n)
     
-    # ---------- Operations function ---------------
+    # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         #print("Attempting to change path ...")
 
@@ -161,7 +160,7 @@ class TreeSampler:
         new_node = neighbors[rd.randrange(0, len(neighbors))]
 
         if self.G.nodes[new_node]['inf_time'] == math.inf:
-            print(f"New node added: {new_node}")
+            #print(f"New node added: {new_node}")
             self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
             #Update state
@@ -178,10 +177,23 @@ class TreeSampler:
         t_index = self._get_path_index_for_node(node)
 
         if t_index != -1:
-            print(f"Node deleted: {node}")
+            #print(f"Node deleted: {node}")
 
+            # Delete path from T_current 
             del self.T_current[t_index]
             self.G.nodes[node]['inf_time'] = math.inf
 
-            self.nodes_to_sample.remove(node)
+#           try:
+            list_index = self.nodes_to_sample.index(node)
+#           except ValueError:
+#                # If the node was already removed (e.g., by a path change fix), just skip
+#                return
+            
+            #Swap the element
+            last_element = self.nodes_to_sample[-1]
+            self.nodes_to_sample[list_index] = last_element
+
+            self.nodes_to_sample.pop()
+
+
             self.unobserved_leaves.remove(node)
