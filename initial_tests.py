@@ -35,9 +35,8 @@ T_initial = feasible_tree(G, infected_nodes)
 #"Error: 'NoneType' object is not subscri table
 while None in T_initial:
     T_initial = feasible_tree(G, infected_nodes)
-print("--------------------------------------------------------------------------------------------")
+
 print(T_initial)
-print("--------------------------------------------------------------------------------------------")
 #print(check_feasibility_tree(G,T_initial))
 
 samplings_number = 10000
@@ -63,6 +62,6 @@ sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
 
 #Run
 sampling = sampler.run(n_iterations=samplings_number)
-print(f"Observed infection times: {nx.get_node_attributes(G, "inf_time")}")
+#print(f"Observed infection times: {nx.get_node_attributes(G, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
