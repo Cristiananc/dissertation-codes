@@ -9,9 +9,6 @@ import numpy as np
 import copy
 from .helpers import prob_path_log, prob_tree_log
 
-# INPUT:
-# A flag that states which version of the DFS modified we would like to use. 
-# OUTPUT:
 def DFS(G, v, t,k, path, visited, flag=0): 
     #Disclaimer: Code refactored with AI assistance.
 

@@ -20,7 +20,9 @@ G = nx.erdos_renyi_graph(n, p)
 
 beta = 0.4
 fast_SIR(G, [0], beta)
-print(f"Real infection times: {nx.get_node_attributes(G, "inf_time")}")
+
+#Making a copy with the real infection times
+G_real = copy.deepcopy(G)
 
 #Selecting a fraction of nodes that will not be observed.
 p_excluded = 0.4
@@ -29,17 +31,15 @@ excluded, infected_nodes = excludeInfTime(G, p_excluded)
 #Deleting nodes that we known were not infected from the graph.
 delete_susceptibles(G)
 
-T_initial = feasible_tree(G, infected_nodes)
+T_initial = feasible_tree(G, infected_nodes, flag=1)
 
-#Repeat until a tree doesn't have a None path on it.
-#"Error: 'NoneType' object is not subscri table
-while None in T_initial:
-    T_initial = feasible_tree(G, infected_nodes)
+if None in T_initial:
+    print("Feasible tree not found!")
 
 print(T_initial)
 #print(check_feasibility_tree(G,T_initial))
 
-samplings_number = 10000
+samplings_number = 1000
 #samplings = sampling_trees(G, T_initial, samplings_number, infected_nodes, flag=2)
 
 #Proportion of nodes found
@@ -62,6 +62,6 @@ sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
 
 #Run
 sampling = sampler.run(n_iterations=samplings_number)
-#print(f"Observed infection times: {nx.get_node_attributes(G, "inf_time")}")
+print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
