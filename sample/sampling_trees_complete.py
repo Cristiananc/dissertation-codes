@@ -131,7 +131,7 @@ class TreeSampler:
     
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
-        #print("Attempting to change path ...")
+        #print("Changing path ...")
 
         t_index = self._get_path_index_for_node(target_node)
 
@@ -183,17 +183,12 @@ class TreeSampler:
             del self.T_current[t_index]
             self.G.nodes[node]['inf_time'] = math.inf
 
-#           try:
             list_index = self.nodes_to_sample.index(node)
-#           except ValueError:
-#                # If the node was already removed (e.g., by a path change fix), just skip
-#                return
-            
+
             #Swap the element
             last_element = self.nodes_to_sample[-1]
             self.nodes_to_sample[list_index] = last_element
 
             self.nodes_to_sample.pop()
-
 
             self.unobserved_leaves.remove(node)

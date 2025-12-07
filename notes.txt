@@ -1,2 +1,3 @@
 TASKS TO DO:
 * Compare the percentages found with the truth.
+* ValueError: math domain error (fixing at 07/dez/25)
