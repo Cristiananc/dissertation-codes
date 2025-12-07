@@ -10,7 +10,7 @@ from functools import reduce
 import copy
 from tqdm import tqdm
 from time import sleep
-from .sampling_trees import find_k_length_path #Change the file name to search_on_graphs
+from .search_graphs import find_k_length_path
 
 class TreeSampler:
     def __init__(self, G, T_initial, infected_nodes, flag=0):
@@ -35,13 +35,15 @@ class TreeSampler:
         if self.T_current == [[0]]:
             return None
         
+        accepted_count = 0
+        
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break #Safety check
 
             #Drawing beta from a gamma distribution
             shape, scale = 2., 2.  # mean=4, std=2*sqrt(2)
-            beta = np.random.gamma(shape, scale, 1)
+            beta = np.random.gamma(shape, scale)
 
             previous_T = copy.deepcopy(self.T_current)
             previous_G = copy.deepcopy(self.G)
@@ -60,30 +62,45 @@ class TreeSampler:
                 node_change_path = self._choose_random_node(self.infected_nodes)
                 self._change_path(node_change_path)
 
+                #We assume the number of available paths doesn't change much between states
+                q_ratio = 1
+
             #Delete operation 
             else:
                 if len(self.unobserved_leaves) > 0:
                     node_delete = self._choose_random_node(self.unobserved_leaves)
-                    self._delete_node(node_delete)
+                    parent_node = self._delete_node(node_delete)
+
+                    neigh_available = -1
+                    for neighbor in self.G.neighbors(parent_node):
+                        if G.nodes(neighbor)['inf_time'] == math.inf:
+                            neigh_available += 1
+
+                    q_ratio = math.log(len(self.unobserved_leaves)) - math.log(len(self.nodes_to_sample) * neigh_available)
 
             #Compute the acceptance probability 
-            prob_tree_prop = self.prob_tree_log(self.G, proposal_T, beta)
+            prob_tree_prop = self.prob_tree_log(self.G, self.T_current, beta)
             prob_tree_curr = self.prob_tree_log(previous_G, previous_T, beta)
 
             # Acceptance threshold
-            alpha = min(0, log_alpha)
+            alpha = min(0, (math.log(prob_tree_prop/prob_tree_curr) + q_ratio))
             p_uniform = math.log(np.random.uniform())
 
             # We accept the proposed state
             if p_uniform < alpha:
                 #Record state
                 self.samplings.append(copy.deepcopy(self.T_current))
+                        
+                #Counter to track acceptance
+                accepted_count += 1
         
             else:
                 self.G = copy.deepcopy(previous_G)
                 self.T_current = copy.deepcopy(previous_T)
 
             sleep(0.01)
+
+        print(f"Final Acceptance Rate: {accepted_count / n:.2%}")
 
         return self.samplings
 
@@ -203,6 +220,7 @@ class TreeSampler:
             bool: True if the operation was successful, False otherwise.
         """
         t_index = self._get_path_index_for_node(node)
+        parent_node = self.T_current[t_index][0]
 
         if t_index != -1:
             #print(f"Node deleted: {node}")
@@ -220,6 +238,8 @@ class TreeSampler:
             self.nodes_to_sample.pop()
 
             self.unobserved_leaves.remove(node)
+        
+            return parent_node
 
     # ---------- Compute probabilities ----------------#
     def prob_tree_log(self, T, beta):
@@ -240,4 +260,3 @@ class TreeSampler:
 
         return prob_log
     
-    # ------------ Search on graphs ------------- #
