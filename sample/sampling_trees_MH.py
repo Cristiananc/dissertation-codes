@@ -240,14 +240,11 @@ class TreeSamplerMH:
 
     def _assign_and_track_new_path(self, index, new_path):
         """
-        This function performs an example operation.
+        Assign a new_path for node in a given index.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
-
-        Returns:
-            bool: True if the operation was successful, False otherwise.
+            index (int): Index of the node that is the source of the new path.
+            new_path (list): Path of fixed length from a source node to a target node.
         """
 
         self.T_current[index] = new_path
@@ -264,27 +261,19 @@ class TreeSamplerMH:
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
-        This function performs an example operation.
+        This function performs a swap of a path operation.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
-
-        Returns:
-            bool: True if the operation was successful, False otherwise.
+            target_node (int): The node for which the path in the current tree will be changed.
         """
 
         #print("Changing path ...")
-
         t_index = self._get_path_index_for_node(target_node)
 
-        if t_index == -1:
-            # If the node is intermediate, it might not have its own path in T_current
-            return
+        # If the node is intermediate, it might not have its own path in T_current
+        if t_index == -1: return
         
         self._clean_intermediate_nodes(t_index)
-
-        #Calculates the new path
         new_path = self._calculate_new_path(target_node)
 
         #Since we deleted the descendants of intermediate nodes
@@ -297,21 +286,20 @@ class TreeSamplerMH:
 
     def _add_neighbor(self, node):
         """
-        This function performs an example operation.
+        Performs an addition of a node operation.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            node (int): The parent of the new node that will be added.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            len(neighb_available) (int): The size of the list of available neighbors of the 
+            parent node that can be added in the tree.
         """
 
         neighbors = list(self.G.neighbors(node))
         neighb_available = [node for node in neighbors if self.G.nodes[node]['inf_time'] == math.inf]        
         
-        if not neighb_available:
-            return
+        if not neighb_available: return None
 
         new_node =  neighb_available[rd.randrange(0, len( neighb_available))]
 
@@ -331,48 +319,49 @@ class TreeSamplerMH:
 
     def _delete_node(self, node):
         """
-        This function performs an example operation.
+        Performs a deletion of a node operation.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            node (int): The node which will be deleted from the current feasible tree.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            parent_node (int): The parent of the deleted node in the current feasible tree.
         """
         t_index = self._get_path_index_for_node(node)
-        parent_node = self.T_current[t_index][0]
 
-        if t_index != -1:
-            #print(f"Node deleted: {node}")
+        if t_index == -1: return None
 
-            # Delete path from T_current 
-            del self.T_current[t_index]
-            self.G.nodes[node]['inf_time'] = math.inf
+        #The path structure is [Leaf, Parent] based on _add_neighbor logic.
+        # Hence the parent is at index 1.
+        if len(self.T_current[t_index]) > 1:
+            parent_node = self.T_current[t_index][1]
 
-            list_index = self.nodes_to_sample.index(node)
+        #print(f"Node deleted: {node}")
+        # Delete path from T_current 
+        del self.T_current[t_index]
+        self.G.nodes[node]['inf_time'] = math.inf
 
-            #Swap the element
-            last_element = self.nodes_to_sample[-1]
-            self.nodes_to_sample[list_index] = last_element
+        list_index = self.nodes_to_sample.index(node)
 
-            self.nodes_to_sample.pop()
-
-            self.unobserved_leaves.remove(node)
+        #Standard swap and pop
+        self.nodes_to_sample[list_index] = self.nodes_to_sample[-1]
+        self.nodes_to_sample.pop()
+        self.unobserved_leaves.remove(node)
         
-            return parent_node
+        return parent_node
 
     # ---------- Compute probabilities -------------------#
     def _prob_tree_log(self, G, T, beta):
         """
-        This function performs an example operation.
+        This function calculates the log-likelihood of a tree for a given infection rate.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            G (networkx graph): Graph for which we will calculate the failed infection events.
+            T (list): The transmission tree for which we will compute the log-likelihood.
+            beta (float): Infection rate.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            prob_log (float): The log-likelihood for T for a fixed beta.
         """
 
         succes_events = reduce(lambda count, l: count + len(l) - 1, T, 0)
@@ -383,7 +372,6 @@ class TreeSamplerMH:
                 total_events += G.degree[node] - 1
         
         failed_events = total_events - succes_events
-
         beta_aux = 1 - beta
         prob_log = succes_events*math.log(beta)+ failed_events*math.log(beta_aux)
 
