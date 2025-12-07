@@ -146,37 +146,39 @@ class TreeSamplerMH:
 
     def _revert_state(self, prev_G, prev_T, prev_nodes, prev_leaves):
         """
-        Clean helper to revert ALL state components.
+        Clean helper to revert all state components.
         """
         self.G = copy.deepcopy(prev_G)
-
+        self.T_current = copy.deepcopy(prev_T)
+        self.nodes_to_sample = list(prev_nodes)
+        self.unobserved_leaves = list(prev_leaves)
 
 
     def _choose_random_node(self, list_of_nodes):
         """
-        This function performs an example operation.
+        Chooses a random element uniformly from a list.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            list_of_nodes (list): List with nodes (integers).
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            random_node (int): Random element from list_of_nodes.
         """
 
         rand_idx = rd.randrange(0, len(list_of_nodes))
-        return list_of_nodes[rand_idx]
+        random_node = list_of_nodes[rand_idx]
+
+        return random_node
 
     def _get_path_index_for_node(self, node):
         """
-        This function performs an example operation.
+        Gets the index of a specific element in a list.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            node (int): The specific element to be found.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            i (int): -1 if element is not found, otherwise the index of node in the list.
         """
 
         for i, path in enumerate(self.T_current):
@@ -186,16 +188,12 @@ class TreeSamplerMH:
     
     def _clean_intermediate_nodes(self, index):
         """
-        This function performs an example operation.
+        Performs a deletion of the unobserveds (intermediates) nodes in a path.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            index (int): The index of the path in the self.T_current (list of lists).
 
-        Returns:
-            bool: True if the operation was successful, False otherwise.
         """
-
         current_path = self.T_current[index]
 
         for intermediate_node in current_path[1:-1]:
@@ -205,7 +203,7 @@ class TreeSamplerMH:
             if intermediate_node in self.nodes_to_sample:
                 self.nodes_to_sample.remove(intermediate_node)
 
-            #Remove their descendants as well
+            #Remove descendants
             descendants = nx.descendants(self.G, intermediate_node)
 
             for descendant in descendants:
@@ -218,26 +216,27 @@ class TreeSamplerMH:
                     if descendant in self.unobserved_leaves:
                         self.unobserved_leaves.remove(descendant)
 
-                    #Remove path that contains the descendant
+                    #Remove paths that contains descendants
                     node_index = self._get_path_index_for_node(descendant)
                     if node_index != -1:
                         del self.T_current[node_index]
 
-    def _calculate_new_path(self,target_node):
+    def _calculate_new_path(self,source_node):
         """
-        This function performs an example operation.
+        Finds a path of fixed length from a source node to a target node.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            source_node (int): Source node for the s-t k-path search.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            new_path (list): s-t k-path found.
         """
 
-        return find_k_length_path(
-            self.G, target_node, 0, self.G.nodes[target_node]['inf_time'], self.flag
+        new_path = find_k_length_path(
+            self.G, source_node, 0, self.G.nodes[source_node]['inf_time'], self.flag
         )
+
+        return new_path
 
     def _assign_and_track_new_path(self, index, new_path):
         """
@@ -392,36 +391,39 @@ class TreeSamplerMH:
     
     def _compute_acceptance_prob(self, q_ratio, beta, previous_G, previous_T):
         """
-        This function performs an example operation.
+        Calculates alpha using the log-likelihoods
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            q_ratio (float): Proposal distribution ratio.
+            beta (float): Infection rate.
+            previous_G (networkx graph): Graph G before proposal.
+            previos_T (list): Feasible tree before proposal.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            alpha (float): Acceptance probability for proposal.
         """
 
         prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
 
-        # Returns acceptance threshold
+        # Alpha = (Log P_new - Log P_old) + Log Q_ratio
         alpha_aux = prob_tree_prop - prob_tree_curr + q_ratio
+
         alpha = min(0, alpha_aux) 
         return alpha
     
     def _compute_q_ratio_deletion(self, parent_node):
         """
-        This function performs an example operation.
+        Calculates the Hastings ratio for deletion
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            parent_node (int): The parent node of the deleted node.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            (bool, float) -> (valid_proposal, q_ratio)
         """
 
+        valid_proposal = False
         q_ratio = 0
 
         if parent_node is not None:
