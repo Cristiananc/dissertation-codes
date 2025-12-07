@@ -13,6 +13,17 @@ from time import sleep
 from .search_graphs import find_k_length_path
 
 class TreeSampler:
+    """
+    This function performs an example operation.
+
+    Args:
+        param1 (int): The first parameter.
+        param2 (str): The second parameter.
+
+    Returns:
+        bool: True if the operation was successful, False otherwise.
+    """
+    
     def __init__(self, G, T_initial, infected_nodes, flag=0):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
@@ -32,6 +43,17 @@ class TreeSampler:
                     self.nodes_to_sample.append(node)
         
     def run(self, n_iterations):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         if self.T_current == [[0]]:
             return None
         
@@ -84,9 +106,6 @@ class TreeSampler:
 
             # We accept the proposed state
             if p_uniform < alpha:
-                #Record state
-                self.samplings.append(copy.deepcopy(self.T_current))
-                        
                 #Counter to track acceptance
                 accepted_count += 1
         
@@ -94,6 +113,9 @@ class TreeSampler:
                 self.G = copy.deepcopy(previous_G)
                 self.T_current = copy.deepcopy(previous_T)
 
+            #Record state
+            self.samplings.append(copy.deepcopy(self.T_current))
+                        
             sleep(0.001)
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
@@ -103,17 +125,49 @@ class TreeSampler:
     # --------- Helper methods ------------ #
 
     def _choose_random_node(self, list_of_nodes):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         rand_idx = rd.randrange(0, len(list_of_nodes))
         return list_of_nodes[rand_idx]
 
     def _get_path_index_for_node(self, node):
-        #Finds the index in T_current where the path starts with node
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         for i, path in enumerate(self.T_current):
             if path and path[0] == node:
                 return i
         return -1
     
     def _clean_intermediate_nodes(self, index):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         current_path = self.T_current[index]
 
         for intermediate_node in current_path[1:-1]:
@@ -142,11 +196,33 @@ class TreeSampler:
                         del self.T_current[node_index]
 
     def _calculate_new_path(self,target_node):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         return find_k_length_path(
             self.G, target_node, 0, self.G.nodes[target_node]['inf_time'], self.flag
         )
 
     def _assign_and_track_new_path(self, index, new_path):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         self.T_current[index] = new_path
 
         #Clean up tracking lists 
@@ -160,6 +236,17 @@ class TreeSampler:
     
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         #print("Changing path ...")
 
         t_index = self._get_path_index_for_node(target_node)
@@ -182,6 +269,17 @@ class TreeSampler:
 
 
     def _add_neighbor(self, node):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         neighbors = list(self.G.neighbors(node))
         neighb_available = [node for node in neighbors if self.G.nodes[node]['inf_time'] == math.inf]        
         
@@ -240,7 +338,14 @@ class TreeSampler:
     # ---------- Compute probabilities -------------------#
     def _prob_tree_log(self, G, T, beta):
         """
-        Returns the log probability of a transmission tree.
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
         """
 
         succes_events = reduce(lambda count, l: count + len(l) - 1, T, 0)
@@ -258,6 +363,17 @@ class TreeSampler:
         return prob_log
     
     def _compute_acceptance_prob(self, q_ratio, beta, previous_G, previous_T):
+        """
+        This function performs an example operation.
+
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+
         prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
 
@@ -279,7 +395,7 @@ class TreeSampler:
         """
 
         q_ratio = 0
-        
+
         if parent_node is not None:
 
             neigh_available = 0
