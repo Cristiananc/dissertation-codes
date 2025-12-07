@@ -6,7 +6,7 @@ from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
 import time
-from sample.sampling_trees_complete_v2 import TreeSampler
+from sample.sampling_trees_MH import TreeSampler
 from sample.sampling_trees import feasible_tree
 
 #Creating initial graph example
