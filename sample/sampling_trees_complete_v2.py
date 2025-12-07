@@ -43,11 +43,12 @@ class TreeSampler:
 
             #Drawing beta from a gamma distribution
             shape, scale = 2., 2.  # mean=4, std=2*sqrt(2)
-            beta = np.random.gamma(shape, scale)
+            beta = np.random.beta(shape, scale)
 
             previous_T = copy.deepcopy(self.T_current)
             previous_G = copy.deepcopy(self.G)
 
+            q_ratio = 1
             p = np.random.uniform()
 
             if p < 1/3:
@@ -55,7 +56,8 @@ class TreeSampler:
                 node_addition = self._choose_random_node(self.nodes_to_sample)
                 len_neigh = self._add_neighbor(node_addition)
 
-                q_ratio = math.log((len(self.nodes_to_sample) *len_neigh)/ len(self.unobserved_leaves))
+                if len_neigh is not None:
+                    q_ratio = math.log((len(self.nodes_to_sample) *len_neigh)/ len(self.unobserved_leaves))
 
             elif p < 2/3:
                 #Changing path operation
@@ -63,7 +65,7 @@ class TreeSampler:
                 self._change_path(node_change_path)
 
                 #We assume the number of available paths doesn't change much between states
-                q_ratio = 1
+                #so q_ratio = 1
 
             #Delete operation 
             else:
@@ -73,7 +75,7 @@ class TreeSampler:
 
                     neigh_available = -1
                     for neighbor in self.G.neighbors(parent_node):
-                        if G.nodes(neighbor)['inf_time'] == math.inf:
+                        if self.G.nodes[neighbor]['inf_time'] == math.inf:
                             neigh_available += 1
 
                     q_ratio = math.log(len(self.unobserved_leaves)) - math.log(len(self.nodes_to_sample) * neigh_available)
@@ -100,7 +102,7 @@ class TreeSampler:
 
             sleep(0.01)
 
-        print(f"Final Acceptance Rate: {accepted_count / n:.2%}")
+        print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
 
         return self.samplings
 
@@ -241,22 +243,23 @@ class TreeSampler:
         
             return parent_node
 
-    # ---------- Compute probabilities ----------------#
-    def prob_tree_log(self, T, beta):
+    # ---------- Compute probabilities -------------------#
+    def prob_tree_log(self, G, T, beta):
         """
         Returns the log probability of a transmission tree.
         """
 
         succes_events = reduce(lambda count, l: count + len(l) - 1, T, 0)
-        total_events = self.G.degree[0]
+        total_events = G.degree[0]
 
         for lis in T[1:]:
             for node in lis[0:-1]:
-                total_events += self.G.degree[node] - 1
+                total_events += G.degree[node] - 1
         
         failed_events = total_events - succes_events
 
-        prob_log = math.log(beta**(succes_events)*(1 - beta)**failed_events)
+        beta_aux = 1 - beta
+        prob_log = succes_events*math.log(beta)+ failed_events*math.log(beta_aux)
 
         return prob_log
     

@@ -7,9 +7,10 @@ from epidemic_simulation.helpers import *
 from sample.helpers import *
 import time
 from sample.sampling_trees_complete_v2 import TreeSampler
+from sample.sampling_trees import feasible_tree
 
 #Creating initial graph example
-n = 20
+n = 10
 p = 5/(n - 1)
 G = nx.erdos_renyi_graph(n, p)
 
@@ -31,16 +32,16 @@ T_initial = feasible_tree(G, infected_nodes, flag=1)
 if None in T_initial:
     print("Feasible tree not found!")
 
-print(T_initial)
-#print(check_feasibility_tree(G,T_initial))
+else:
+    print(T_initial)
 
-samplings_number = 1000
+    samplings_number = 10
 
-#Initialize class
-sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
+    #Initialize class
+    sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
 
-#Run
-sampling = sampler.run(n_iterations=samplings_number)
-print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
-print("--------------------------------------------------------------------------------------------")
-print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
+    #Run
+    sampling = sampler.run(n_iterations=samplings_number)
+    print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
+    print("--------------------------------------------------------------------------------------------")
+    print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
