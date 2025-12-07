@@ -12,16 +12,10 @@ from tqdm import tqdm
 from time import sleep
 from .search_on_graphs import find_k_length_path
 
-class TreeSampler:
+class TreeSamplerMH:
     """
-    This function performs an example operation.
-
-    Args:
-        param1 (int): The first parameter.
-        param2 (str): The second parameter.
-
-    Returns:
-        bool: True if the operation was successful, False otherwise.
+    MCMC Sampler for inferring infected nodes on a network with partial 
+    information available.
     """
     
     def __init__(self, G, T_initial, infected_nodes, flag=0):
@@ -34,8 +28,8 @@ class TreeSampler:
         self.unobserved_leaves = []
         self.samplings = [T_initial]
 
-        #Adding intermediate nodes to our list of possible nodes to sample
-        #Initially we don't have unobserved nodes as leaves, hence the respective list remains empty.
+        # Initialization logic
+        # Adding intermediate nodes to our list of possible nodes to sample
         for path in T_initial:
             if not path: continue
             for node in path:
@@ -44,14 +38,13 @@ class TreeSampler:
         
     def run(self, n_iterations):
         """
-        This function performs an example operation.
+        This function executes the Metropolis-Hastings sampling loop.
 
         Args:
-            param1 (int): The first parameter.
-            param2 (str): The second parameter.
+            n_iterations (int): The number of iterations of the loop.
 
         Returns:
-            bool: True if the operation was successful, False otherwise.
+            self.samplings (list): List of states sampled.
         """
 
         if self.T_current == [[0]]:
@@ -61,68 +54,103 @@ class TreeSampler:
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
-                break #Safety check
+                break 
             
-            valid_proposal = True
-
-            #Drawing beta from a gamma distribution
-            shape, scale = 2., 2.  # mean=4, std=2*sqrt(2)
+            # Beta clamping to prevent math domain error
+            shape, scale = 2., 2.  
             beta = np.random.beta(shape, scale)
+            beta = max(1e-9, min(beta, 1 - 1e-9))
 
+            # Capture full state for reversion
             previous_T = copy.deepcopy(self.T_current)
             previous_G = copy.deepcopy(self.G)
+            previous_nodes_list = list(self.nodes_to_sample)
+            previous_leaves_list = list(self.unobserved_leaves)
 
-            q_ratio = 1
-            p = np.random.uniform()
+            valid_proposal, q_ratio = self._propose_next_state()
 
-            if p < 1/3:
-                #Addition operation
-                node_addition = self._choose_random_node(self.nodes_to_sample)
-                len_neigh = self._add_neighbor(node_addition)
+            if valid_proposal:
+                alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
+                p_uniform = math.log(np.random.uniform())
 
-                if len_neigh is not None:
-                    q_ratio = math.log((len(self.nodes_to_sample) *len_neigh)/ len(self.unobserved_leaves))
+                if p_uniform < alpha:
+                    #ACCEPT
+                    accepted_count += 1
+                    self.samplings.append(copy.deepcopy(self.T_current))
 
-            elif p < 2/3:
-                #Changing path operation
-                node_change_path = self._choose_random_node(self.infected_nodes)
-                self._change_path(node_change_path)
-
-                #We assume the number of available paths doesn't change much between states
-                #so q_ratio = 1
-
-            else:
-                #Delete operation 
-                if len(self.unobserved_leaves) > 0:
-                    node_delete = self._choose_random_node(self.unobserved_leaves)
-                    parent_node = self._delete_node(node_delete)
-
-                    valid_proposal, q_ratio = self._compute_q_ratio_deletion(parent_node)
+                else:
+                    #REJECT
+                    self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
+                    self.samplings.append(copy.deepcopy(self.T_current))
 
             #Compute the acceptance probability 
             alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
             
             p_uniform = math.log(np.random.uniform())
 
-            # We accept the proposed state
-            if p_uniform < alpha:
-                #Counter to track acceptance
-                accepted_count += 1
-        
-            else:
-                self.G = copy.deepcopy(previous_G)
-                self.T_current = copy.deepcopy(previous_T)
-
-            #Record state
-            self.samplings.append(copy.deepcopy(self.T_current))
-                        
-            sleep(0.001)
-
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
-
         return self.samplings
 
     # --------- Helper methods ------------ #
+
+    def _propose_next_state(self):
+        """
+        Handles the logic for proposing a move.
+
+        Returns:
+            (bool, float) (tuple) -> (valid_proposal, q_ratio).
+        """
+        
+        p = np.random.uniform()
+        q_ratio = 0 # Default (log(1) = 0)
+        valid_proposal = True
+
+        if p < 1/3:
+            #Addition
+            node_addition = self._choose_random_node(self.nodes_to_sample)
+            len_neigh = self._add_neighbor(node_addition)
+
+            if len_neigh is not None and len_neigh > 0:
+                # Foward: 1/N * 1/len_neigh | Reverse: 1/Leaves_new
+                n_sample = len(self.nodes_to_sample)
+                n_leaves_new = len(self.unobserved_leaves)
+
+                if n_leaves_new > 0:
+                    q_ratio = math.log((n_sample *len_neigh)) - math.log(n_leaves_new)
+
+                else:
+                    valid_proposal = False
+            
+            else:
+                valid_proposal = False
+
+        elif p < 2/3:
+            #Changing path
+            node_change_path = self._choose_random_node(self.infected_nodes)
+            self._change_path(node_change_path)
+
+            #We assume the number of available paths doesn't change much between states
+            q_ratio = 0 #Assumed symmetric
+
+        else:
+            #Deletion 
+            if len(self.unobserved_leaves) > 0:
+                node_delete = self._choose_random_node(self.unobserved_leaves)
+                parent_node = self._delete_node(node_delete)
+                valid_proposal, q_ratio = self._compute_q_ratio_deletion(parent_node)
+            
+            else:
+                valid_proposal = False
+
+        return valid_proposal, q_ratio
+
+    def _revert_state(self, prev_G, prev_T, prev_nodes, prev_leaves):
+        """
+        Clean helper to revert ALL state components.
+        """
+        self.G = copy.deepcopy(prev_G)
+
+
 
     def _choose_random_node(self, list_of_nodes):
         """

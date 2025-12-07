@@ -33,7 +33,7 @@ if None in T_initial:
 else:
     print(T_initial)
 
-    samplings_number = 100
+    samplings_number = 10000
 
     #Initialize class
     sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
