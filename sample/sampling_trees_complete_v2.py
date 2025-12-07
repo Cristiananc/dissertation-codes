@@ -67,25 +67,17 @@ class TreeSampler:
                 #We assume the number of available paths doesn't change much between states
                 #so q_ratio = 1
 
-            #Delete operation 
             else:
+                #Delete operation 
                 if len(self.unobserved_leaves) > 0:
                     node_delete = self._choose_random_node(self.unobserved_leaves)
                     parent_node = self._delete_node(node_delete)
 
-                    neigh_available = -1
-                    for neighbor in self.G.neighbors(parent_node):
-                        if self.G.nodes[neighbor]['inf_time'] == math.inf:
-                            neigh_available += 1
-
-                    q_ratio = math.log(len(self.unobserved_leaves)) - math.log(len(self.nodes_to_sample) * neigh_available)
+                q_ratio = self._compute_q_ratio_deletion(parent_node)
 
             #Compute the acceptance probability 
-            prob_tree_prop = self.prob_tree_log(self.G, self.T_current, beta)
-            prob_tree_curr = self.prob_tree_log(previous_G, previous_T, beta)
-
-            # Acceptance threshold
-            alpha = min(0, (prob_tree_prop - prob_tree_curr) + q_ratio)
+            alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
+            
             p_uniform = math.log(np.random.uniform())
 
             # We accept the proposed state
@@ -100,7 +92,7 @@ class TreeSampler:
                 self.G = copy.deepcopy(previous_G)
                 self.T_current = copy.deepcopy(previous_T)
 
-            sleep(0.01)
+            sleep(0.001)
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
 
@@ -244,7 +236,7 @@ class TreeSampler:
             return parent_node
 
     # ---------- Compute probabilities -------------------#
-    def prob_tree_log(self, G, T, beta):
+    def _prob_tree_log(self, G, T, beta):
         """
         Returns the log probability of a transmission tree.
         """
@@ -263,3 +255,20 @@ class TreeSampler:
 
         return prob_log
     
+    def _compute_acceptance_prob(self, q_ratio, beta, previous_G, previous_T):
+        prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
+        prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
+
+        # Returns acceptance threshold
+        return min(0, (prob_tree_prop - prob_tree_curr) + q_ratio)
+    
+    def _compute_q_ratio_deletion(self, parent_node):
+        neigh_available = -1
+        
+        for neighbor in self.G.neighbors(parent_node):
+            if self.G.nodes[neighbor]['inf_time'] == math.inf:
+                neigh_available += 1
+
+        q = math.log(len(self.unobserved_leaves)) - math.log(len(self.nodes_to_sample) * neigh_available)
+       
+        return q
