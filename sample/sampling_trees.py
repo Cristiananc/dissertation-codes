@@ -1,114 +1,16 @@
-
-"""
- This file contains the modified DFS algorithm for sampling the feasible trees.  
-"""
-
 import math
 import random as rd
 import numpy as np
+import networkx as nx
 import copy
+from tqdm import tqdm
+from time import sleep
+
+#Importing from local files
 from .helpers import prob_path_log, prob_tree_log
-
-def DFS(G, v, t,k, path, visited, flag=0): 
-    #Disclaimer: Code refactored with AI assistance.
-
-    # Base Case: Sucess
-    #If the current node is the target node and the length of the path - 1 is k, we have found
-    #a desired path 
-    if v == t and len(path) == k:
-        return path
-    
-    # Base Case: Path too long
-    if len(path) > k:
-        return None
-    
-    # Base Case: Target reached too early 
-    #If the target node is reached before the length of the desired path, then no path is returned
-    if len(path) < k and v == t:
-        return None
-    
-    # Observed Node Check (Existing "Infection Time" Logic)
-    # If we hit a node that was already visited in a previous valid context
-    # and the timing matches, we consider this path valid
-    if len(path) > 1 and (k -  G.nodes[v]['inf_time'] == len(path) - 1):
-        return path
-
-    #If the time doesn't match we return None
-    if G.nodes[v]['inf_time'] != math.inf and (k - G.nodes[v]['inf_time'] != len(path) - 1):
-        return None
-
-    # Set Infection Time
-    # Only set this if it hasn't been set (implied by passing step 4)
-    # Each unobserved node we pass in the path receives a infection time.
-    if G.nodes[v]['inf_time'] == math.inf:
-        G.nodes[v]['inf_time'] = k - len(path) + 1
-        reset_inf_time = True #A flag to remember we need to reset it later
-    
-    else:
-        reset_inf_time = False # We didn't change it
-    
-    visited[v] = True
-
-    # Neighbor Handling
-    neighbors  = list(G.neighbors(v))
-
-    # Check in case the node doesn't have neighbors:
-    if not neighbors:
-        visited[v] = False
-
-        #In case we changed the inf time, reset it back to infinite
-        if reset_inf_time:
-            G.nodes[v]['inf_time'] = math.inf
-        
-        return None
-
-    # The flag determines in which ordering the neighbors will be consider
-    # The default ordering is 0.
-    if flag == 1:
-        rd.shuffle(neighbors) #rd.shuffle is an in-place function
-
-    # We shuffle the list, considering the nodes with higher degree
-    # may appear first in the list. 
-    elif flag == 2:
-        neighbors_degree = []
-        
-        for node in neighbors:
-            neighbors_degree.append(G.degree(node))
-
-        norm = sum(neighbors_degree)
-        probs = [d/norm for d in neighbors_degree]
-        shuffled_list = np.random.choice(neighbors, len(neighbors), replace = False, p=probs)
-        neighbors = shuffled_list.tolist()
-
-    # Recursive Step
-    for neighbor in neighbors:
-        if not visited[neighbor]:
-            result = DFS(G, neighbor, t, k, path + [neighbor], visited, flag)
-            #If a desired path is returned we return it
-            if result:
-                return result
-    
-    # Backtracking
-    #The lines below deals with the process of backtracking in the search
-    visited[v] = False
-    # Only reset inf_time if We changed it in this specific call
-    if reset_inf_time:
-        G.nodes[v]['inf_time'] = math.inf
-
-
-def find_k_length_path(G, s, t, k, flag=0):
-    visited = {}
-    for node in G.nodes:
-        visited[node] = False
-    return DFS(G, s, t, k, [s], visited, flag)
-
-def feasible_tree(G, infected_nodes, flag=0):
-    tree = []
-    for node in infected_nodes:
-        tree_aux = find_k_length_path(G, node, 0, G.nodes[node]['inf_time'], flag)
-        tree.append(tree_aux)
-    return tree
-
+from .search_on_graphs import *
+from epidemic_simulation.sir_simulation import fast_SIR
+from .helpers import check_feasibility_graphs
 
 def sampling_trees(G,T_initial,n, infected_nodes, flag=0):
   sampling = [T_initial]
@@ -200,3 +102,208 @@ def metropolis_hastings_approach(G, T_initial, n, infected_nodes, flag=0):
 
     return sampling
 
+def naive_sampling(G, sampling_number, observed_nodes, initial_infecteds):
+
+    samplings = []
+    G_mutable = copy.deepcopy(G)
+
+    while len(samplings) < sampling_number:
+
+        p = np.random.uniform()
+
+        #In place modification of G
+        fast_SIR(G_mutable, initial_infecteds, p)
+
+        if check_feasibility_graphs(G, G_mutable, observed_nodes):
+            all_nodes = nx.get_node_attributes(G_mutable, "inf_time")
+            nodes_infected = [node for node, inf_time in all_nodes.items() if inf_time < math.inf]
+
+            samplings.append(nodes_infected)
+
+    return samplings
+
+class TreeSampler:
+    """
+    Disclaimer: Code refactored with AI assistance. 
+    """
+
+    def __init__(self, G, T_initial, infected_nodes, flag=0):
+        self.G = G
+        self.T_current = copy.deepcopy(T_initial)
+        self.infected_nodes = infected_nodes 
+        self.flag = flag
+
+        self.nodes_to_sample = infected_nodes
+        self.unobserved_leaves = []
+        self.samplings = [T_initial]
+
+        #Adding intermediate nodes to our list of possible nodes to sample
+        #Initially we don't have unobserved nodes as leaves, hence the respective list remains empty.
+        for path in T_initial:
+            if not path: continue
+            for node in path:
+                if node not in self.infected_nodes and node not in self.nodes_to_sample:
+                    self.nodes_to_sample.append(node)
+        
+    def run(self, n_iterations):
+        if self.T_current == [[0]]:
+            return None
+
+        for _ in tqdm(range(n_iterations), desc="Sampling trees"):
+            if not self.nodes_to_sample:
+                break #Safety check
+
+            p = np.random.uniform()
+
+            if p < 1/3:
+                #Addition operation
+                node_addition = self._choose_random_node(self.nodes_to_sample)
+                self._add_neighbor(node_addition)
+        
+            elif p < 2/3:
+                #Changing path operation
+                node_change_path = self._choose_random_node(self.infected_nodes)
+                self._change_path(node_change_path)
+
+            #Delete operation 
+            else:
+                if len(self.unobserved_leaves) > 0:
+                    node_delete = self._choose_random_node(self.unobserved_leaves)
+                    self._delete_node(node_delete)
+                else:
+                    q = np.random.uniform()
+                    if q < 0.5:
+                        node_addition = self._choose_random_node(self.nodes_to_sample)
+                        self._add_neighbor(node_addition)
+
+                    else:
+                        node_change_path = self._choose_random_node(self.infected_nodes)
+                        self._change_path(node_change_path)
+
+            #Record state
+            self.samplings.append(copy.deepcopy(self.T_current))
+            sleep(0.01)
+
+        return self.samplings
+
+    # --------- Helper methods ------------ #
+
+    def _choose_random_node(self, list_of_nodes):
+        rand_idx = rd.randrange(0, len(list_of_nodes))
+        return list_of_nodes[rand_idx]
+
+    def _get_path_index_for_node(self, node):
+        #Finds the index in T_current where the path starts with node
+        for i, path in enumerate(self.T_current):
+            if path and path[0] == node:
+                return i
+        return -1
+    
+    def _clean_intermediate_nodes(self, index):
+        current_path = self.T_current[index]
+
+        for intermediate_node in current_path[1:-1]:
+            
+            self.G.nodes[intermediate_node]['inf_time'] = math.inf       
+
+            if intermediate_node in self.nodes_to_sample:
+                self.nodes_to_sample.remove(intermediate_node)
+
+            #Remove their descendants as well
+            descendants = nx.descendants(self.G, intermediate_node)
+
+            for descendant in descendants:
+
+                if descendant in self.infected_nodes:
+                    continue
+
+                if descendant in self.nodes_to_sample:
+                    self.nodes_to_sample.remove(descendant)
+                    if descendant in self.unobserved_leaves:
+                        self.unobserved_leaves.remove(descendant)
+
+                    #Remove path that contains the descendant
+                    node_index = self._get_path_index_for_node(descendant)
+                    if node_index != -1:
+                        del self.T_current[node_index]
+
+    def _calculate_new_path(self,target_node):
+        return find_k_length_path(
+            self.G, target_node, 0, self.G.nodes[target_node]['inf_time'], self.flag
+        )
+
+    def _assign_and_track_new_path(self, index, new_path):
+        self.T_current[index] = new_path
+
+        #Clean up tracking lists 
+        for n in new_path[1:-1]:
+            #If a leaf becomes part of a path for the new_node, it is no longer a leaf
+            if n in self.unobserved_leaves:
+                self.unobserved_leaves.remove(n)
+            
+            if n not in self.nodes_to_sample:
+                self.nodes_to_sample.append(n)
+    
+    # ---------- Operations function --------------- #
+    def _change_path(self, target_node):
+        #print("Changing path ...")
+
+        t_index = self._get_path_index_for_node(target_node)
+
+        if t_index == -1:
+            # If the node is intermediate, it might not have its own path in T_current
+            return
+        
+        self._clean_intermediate_nodes(t_index)
+
+        #Calculates the new path
+        new_path = self._calculate_new_path(target_node)
+
+        #Since we deleted the descendants of intermediate nodes
+        #it might have changed the index for the path
+        t_index = self._get_path_index_for_node(target_node)
+
+        if new_path is not None:
+            self._assign_and_track_new_path(t_index, new_path)
+
+
+    def _add_neighbor(self, node):
+        neighbors = list(self.G.neighbors(node))
+        if not neighbors:
+            return
+    
+        new_node = neighbors[rd.randrange(0, len(neighbors))]
+
+        if self.G.nodes[new_node]['inf_time'] == math.inf:
+            #print(f"New node added: {new_node}")
+            self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
+
+            #Update state
+            self.T_current.append([new_node, node])
+            self.nodes_to_sample.append(new_node)
+            self.unobserved_leaves.append(new_node)
+
+            #If the source was a leaf, it is not anymore
+            if node in self.unobserved_leaves:
+                self.unobserved_leaves.remove(node)
+
+
+    def _delete_node(self, node):
+        t_index = self._get_path_index_for_node(node)
+
+        if t_index != -1:
+            #print(f"Node deleted: {node}")
+
+            # Delete path from T_current 
+            del self.T_current[t_index]
+            self.G.nodes[node]['inf_time'] = math.inf
+
+            list_index = self.nodes_to_sample.index(node)
+
+            #Swap the element
+            last_element = self.nodes_to_sample[-1]
+            self.nodes_to_sample[list_index] = last_element
+
+            self.nodes_to_sample.pop()
+
+            self.unobserved_leaves.remove(node)

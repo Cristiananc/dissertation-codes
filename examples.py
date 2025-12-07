@@ -5,9 +5,7 @@ from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
 from sample.sampling_trees import *
-from sample.naive_sampling import naive_sampling
 import time
-from sample.sampling_trees_complete import TreeSampler
 
 #Loading our example of a random network
 #with open('data/graphs/20/G_erdos_renyi0_20.pkl', mode='rb') as f:
