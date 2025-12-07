@@ -34,18 +34,27 @@ class TreeSampler:
     def run(self, n_iterations):
         if self.T_current == [[0]]:
             return None
-
+        
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break #Safety check
+
+            #Drawing beta from a gamma distribution
+            shape, scale = 2., 2.  # mean=4, std=2*sqrt(2)
+            beta = np.random.gamma(shape, scale, 1)
+
+            previous_T = copy.deepcopy(self.T_current)
+            previous_G = copy.deepcopy(self.G)
 
             p = np.random.uniform()
 
             if p < 1/3:
                 #Addition operation
                 node_addition = self._choose_random_node(self.nodes_to_sample)
-                self._add_neighbor(node_addition)
-        
+                len_neigh = self._add_neighbor(node_addition)
+
+                q_ratio = math.log((len(self.nodes_to_sample) *len_neigh)/ len(self.unobserved_leaves))
+
             elif p < 2/3:
                 #Changing path operation
                 node_change_path = self._choose_random_node(self.infected_nodes)
@@ -57,8 +66,23 @@ class TreeSampler:
                     node_delete = self._choose_random_node(self.unobserved_leaves)
                     self._delete_node(node_delete)
 
-            #Record state
-            self.samplings.append(copy.deepcopy(self.T_current))
+            #Compute the acceptance probability 
+            prob_tree_prop = self.prob_tree_log(self.G, proposal_T, beta)
+            prob_tree_curr = self.prob_tree_log(previous_G, previous_T, beta)
+
+            # Acceptance threshold
+            alpha = min(0, log_alpha)
+            p_uniform = math.log(np.random.uniform())
+
+            # We accept the proposed state
+            if p_uniform < alpha:
+                #Record state
+                self.samplings.append(copy.deepcopy(self.T_current))
+        
+            else:
+                self.G = copy.deepcopy(previous_G)
+                self.T_current = copy.deepcopy(previous_T)
+
             sleep(0.01)
 
         return self.samplings
@@ -165,6 +189,7 @@ class TreeSampler:
         if node in self.unobserved_leaves:
             self.unobserved_leaves.remove(node)
 
+        return len(neighb_available)
 
     def _delete_node(self, node):
         """
@@ -196,7 +221,7 @@ class TreeSampler:
 
             self.unobserved_leaves.remove(node)
 
-    # ---------- Calculate proposal distribution ----------------#
+    # ---------- Compute probabilities ----------------#
     def prob_tree_log(self, T, beta):
         """
         Returns the log probability of a transmission tree.
