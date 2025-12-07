@@ -40,6 +40,8 @@ class TreeSampler:
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break #Safety check
+            
+            valid_proposal = True
 
             #Drawing beta from a gamma distribution
             shape, scale = 2., 2.  # mean=4, std=2*sqrt(2)
@@ -73,7 +75,7 @@ class TreeSampler:
                     node_delete = self._choose_random_node(self.unobserved_leaves)
                     parent_node = self._delete_node(node_delete)
 
-                q_ratio = self._compute_q_ratio_deletion(parent_node)
+                    valid_proposal, q_ratio = self._compute_q_ratio_deletion(parent_node)
 
             #Compute the acceptance probability 
             alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
@@ -260,7 +262,9 @@ class TreeSampler:
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
 
         # Returns acceptance threshold
-        return min(0, (prob_tree_prop - prob_tree_curr) + q_ratio)
+        alpha_aux = prob_tree_prop - prob_tree_curr + q_ratio
+        alpha = min(0, alpha_aux) 
+        return alpha
     
     def _compute_q_ratio_deletion(self, parent_node):
         """
@@ -273,9 +277,12 @@ class TreeSampler:
         Returns:
             bool: True if the operation was successful, False otherwise.
         """
+
+        q_ratio = 0
+        
         if parent_node is not None:
 
-            neigh_available = -1
+            neigh_available = 0
 
             # Recalculate available neighbors for the reverse move (Addition)
             for neighbor in self.G.neighbors(parent_node):
@@ -288,7 +295,7 @@ class TreeSampler:
             # Check for the Math Domain Error condition (Denominator must be non-zero)
             if n_sample_new == 0 or neigh_available == 0:
                 valid_proposal = False
-                q_ratio = 0  # Set to 0, will be rejected by 'valid_proposal'
+
             else:
                 # q(T|T') / q(T'|T) = N_leaves_old / (N_sample_new * neigh_available)
                 n_leaves_old = len(self.unobserved_leaves) + 1
