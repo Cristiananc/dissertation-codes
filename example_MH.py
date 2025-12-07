@@ -5,14 +5,12 @@ import copy
 from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
-import time
 from sample.sampling_trees_MH import TreeSampler
 from sample.sampling_trees import feasible_tree
 
-#Creating initial graph example
-n = 10
-p = 5/(n - 1)
-G = nx.erdos_renyi_graph(n, p)
+#Loading our example of verification test
+with open('data/graphs/verification_test_graph.pickle', mode='rb') as f:
+    G = pickle.load(f)
 
 beta = 0.4
 fast_SIR(G, [0], beta)
@@ -35,7 +33,7 @@ if None in T_initial:
 else:
     print(T_initial)
 
-    samplings_number = 100000
+    samplings_number = 100
 
     #Initialize class
     sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)

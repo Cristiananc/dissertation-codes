@@ -8,8 +8,8 @@ from time import sleep
 
 #Importing from local files
 from .helpers import prob_path_log, prob_tree_log
-from search_on_graphs import *
-from ..epidemic_simulation.sir_simulation import fast_SIR
+from .search_on_graphs import *
+from epidemic_simulation.sir_simulation import fast_SIR
 from .helpers import check_feasibility_graphs
 
 def sampling_trees(G,T_initial,n, infected_nodes, flag=0):

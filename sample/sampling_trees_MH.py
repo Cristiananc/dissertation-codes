@@ -10,7 +10,7 @@ from functools import reduce
 import copy
 from tqdm import tqdm
 from time import sleep
-from .search_graphs import find_k_length_path
+from .search_on_graphs import find_k_length_path
 
 class TreeSampler:
     """
