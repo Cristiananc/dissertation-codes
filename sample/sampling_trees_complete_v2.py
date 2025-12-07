@@ -85,7 +85,7 @@ class TreeSampler:
             prob_tree_curr = self.prob_tree_log(previous_G, previous_T, beta)
 
             # Acceptance threshold
-            alpha = min(0, (math.log(prob_tree_prop/prob_tree_curr) + q_ratio))
+            alpha = min(0, (prob_tree_prop - prob_tree_curr) + q_ratio)
             p_uniform = math.log(np.random.uniform())
 
             # We accept the proposed state
