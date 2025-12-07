@@ -263,12 +263,40 @@ class TreeSampler:
         return min(0, (prob_tree_prop - prob_tree_curr) + q_ratio)
     
     def _compute_q_ratio_deletion(self, parent_node):
-        neigh_available = -1
-        
-        for neighbor in self.G.neighbors(parent_node):
-            if self.G.nodes[neighbor]['inf_time'] == math.inf:
-                neigh_available += 1
+        """
+        This function performs an example operation.
 
-        q = math.log(len(self.unobserved_leaves)) - math.log(len(self.nodes_to_sample) * neigh_available)
-       
-        return q
+        Args:
+            param1 (int): The first parameter.
+            param2 (str): The second parameter.
+
+        Returns:
+            bool: True if the operation was successful, False otherwise.
+        """
+        if parent_node is not None:
+
+            neigh_available = -1
+
+            # Recalculate available neighbors for the reverse move (Addition)
+            for neighbor in self.G.neighbors(parent_node):
+
+                if self.G.nodes[neighbor]['inf_time'] == math.inf:
+                    neigh_available += 1
+
+            n_sample_new = len(self.nodes_to_sample)
+            
+            # Check for the Math Domain Error condition (Denominator must be non-zero)
+            if n_sample_new == 0 or neigh_available == 0:
+                valid_proposal = False
+                q_ratio = 0  # Set to 0, will be rejected by 'valid_proposal'
+            else:
+                # q(T|T') / q(T'|T) = N_leaves_old / (N_sample_new * neigh_available)
+                n_leaves_old = len(self.unobserved_leaves) + 1
+                q_ratio = math.log(n_leaves_old) - math.log(n_sample_new) - math.log(neigh_available)
+                valid_proposal = True
+
+        else:
+            # Deletion failed
+            valid_proposal = False     
+
+        return valid_proposal, q_ratio
