@@ -6,6 +6,7 @@ import math
 import random as rd
 import numpy as np
 import networkx as nx
+import matplotlib.pyplot as plt
 from functools import reduce
 import copy
 from tqdm import tqdm
@@ -25,7 +26,8 @@ class TreeSamplerMH:
 
         self.nodes_to_sample = infected_nodes
         self.unobserved_leaves = []
-        self.samplings = [T_initial]
+        self.samplings_trees = [T_initial]
+        self.log_likelihood_history = []
 
         # Initialization logic
         # Adding intermediate nodes to our list of possible nodes to sample
@@ -43,7 +45,7 @@ class TreeSamplerMH:
             n_iterations (int): The number of iterations of the loop.
 
         Returns:
-            self.samplings (list): List of states sampled.
+            self.samplings_trees (list): List of states sampled.
         """
 
         if self.T_current == [[0]]:
@@ -75,24 +77,22 @@ class TreeSamplerMH:
                 if p_uniform < alpha:
                     #ACCEPT
                     accepted_count += 1
-                    self.samplings.append(copy.deepcopy(self.T_current))
+                    self.samplings_trees.append(copy.deepcopy(self.T_current))
 
                 else:
                     #REJECT
                     self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
-                    self.samplings.append(copy.deepcopy(self.T_current))
+                    self.samplings_trees.append(copy.deepcopy(self.T_current))
 
             else:
                 self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
-                self.samplings.append(copy.deepcopy(self.T_current))
+                self.samplings_trees.append(copy.deepcopy(self.T_current))
 
-            #Compute the acceptance probability 
-            alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
-            
-            p_uniform = math.log(np.random.uniform())
+            #Calculate the log likelihood for trace plot
+            self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, beta))
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
-        return self.samplings
+        return self.samplings_trees
 
     # --------- Helper methods ------------ #
 
@@ -367,14 +367,23 @@ class TreeSamplerMH:
             prob_log (float): The log-likelihood for T for a fixed beta.
         """
 
-        succes_events = reduce(lambda count, l: count + len(l) - 1, T, 0)
-        total_events = G.degree[0]
+        #Identify all nodes in the tree
+        nodes_in_tree = set()
+        for path in T:
+            nodes_in_tree.update(path)
 
-        for lis in T[1:]:
-            for node in lis[0:-1]:
-                total_events += G.degree[node] - 1
+        if len(nodes_in_tree) <= 1:
+            return 0
         
-        failed_events = total_events - succes_events
+        # Succes Events (V_T - 1)
+        succes_events = len(nodes_in_tree) - 1
+        failed_events = 0
+
+        for u in nodes_in_tree:
+            for v in G.neighbors(u):
+                if v not in nodes_in_tree:
+                    failed_events += 1
+        
         beta_aux = 1 - beta
         prob_log = succes_events*math.log(beta)+ failed_events*math.log(beta_aux)
 
@@ -444,3 +453,10 @@ class TreeSamplerMH:
             valid_proposal = False     
 
         return valid_proposal, q_ratio
+
+    # ------ Visualise results -------- #
+    def _trace_plot_log_likelihood(self, n_iterations):
+        xpoints = list(range(0, n_iterations))
+
+        plt.plot(xpoints, self.log_likelihood_history)
+        plt.show()
