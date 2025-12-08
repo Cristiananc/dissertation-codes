@@ -6,10 +6,10 @@ import math
 import random as rd
 import numpy as np
 import networkx as nx
+import matplotlib.pyplot as plt
 from functools import reduce
 import copy
 from tqdm import tqdm
-from time import sleep
 from .search_on_graphs import find_k_length_path
 
 class TreeSamplerMH:
@@ -23,10 +23,12 @@ class TreeSamplerMH:
         self.T_current = copy.deepcopy(T_initial)
         self.infected_nodes = infected_nodes 
         self.flag = flag
+        self.debug = False
 
         self.nodes_to_sample = infected_nodes
         self.unobserved_leaves = []
-        self.samplings = [T_initial]
+        self.samplings_trees = [T_initial]
+        self.log_likelihood_history = []
 
         # Initialization logic
         # Adding intermediate nodes to our list of possible nodes to sample
@@ -44,7 +46,7 @@ class TreeSamplerMH:
             n_iterations (int): The number of iterations of the loop.
 
         Returns:
-            self.samplings (list): List of states sampled.
+            self.samplings_trees (list): List of states sampled.
         """
 
         if self.T_current == [[0]]:
@@ -52,12 +54,12 @@ class TreeSamplerMH:
         
         accepted_count = 0
         
-        for _ in tqdm(range(n_iterations), desc="Sampling trees"):
+        for _ in range(n_iterations):#tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break 
             
             # Beta clamping to prevent math domain error
-            shape, scale = 2., 2.  
+            shape, scale = 2., 5.  
             beta = np.random.beta(shape, scale)
             beta = max(1e-9, min(beta, 1 - 1e-9))
 
@@ -76,20 +78,31 @@ class TreeSamplerMH:
                 if p_uniform < alpha:
                     #ACCEPT
                     accepted_count += 1
-                    self.samplings.append(copy.deepcopy(self.T_current))
+                    self.samplings_trees.append(copy.deepcopy(self.T_current))
 
                 else:
                     #REJECT
                     self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
-                    self.samplings.append(copy.deepcopy(self.T_current))
+                    self.samplings_trees.append(copy.deepcopy(self.T_current))
 
-            #Compute the acceptance probability 
-            alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
+            else:
+                self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
+                self.samplings_trees.append(copy.deepcopy(self.T_current))
             
-            p_uniform = math.log(np.random.uniform())
+            print()
+            print(f"Current Tree: {self.T_current}")
+            print()
+            print(f"Nodes to sample: {self.nodes_to_sample}")
+            print()
+            print(f"Unobserved leaves: {self.unobserved_leaves}")
+            print()
+            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
+
+            #Calculate the log likelihood for trace plot
+            self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, beta))
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
-        return self.samplings
+        return self.samplings_trees
 
     # --------- Helper methods ------------ #
 
@@ -364,14 +377,23 @@ class TreeSamplerMH:
             prob_log (float): The log-likelihood for T for a fixed beta.
         """
 
-        succes_events = reduce(lambda count, l: count + len(l) - 1, T, 0)
-        total_events = G.degree[0]
+        #Identify all nodes in the tree
+        nodes_in_tree = set()
+        for path in T:
+            nodes_in_tree.update(path)
 
-        for lis in T[1:]:
-            for node in lis[0:-1]:
-                total_events += G.degree[node] - 1
+        if len(nodes_in_tree) <= 1:
+            return 0
         
-        failed_events = total_events - succes_events
+        # Succes Events (V_T - 1)
+        succes_events = len(nodes_in_tree) - 1
+        failed_events = 0
+
+        for u in nodes_in_tree:
+            for v in G.neighbors(u):
+                if v not in nodes_in_tree:
+                    failed_events += 1
+        
         beta_aux = 1 - beta
         prob_log = succes_events*math.log(beta)+ failed_events*math.log(beta_aux)
 
@@ -393,6 +415,12 @@ class TreeSamplerMH:
 
         prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
+
+        if prob_tree_curr < - 20:
+            print("The log likelihood is less than -20!")
+            self.debug = True
+
+        print(f"log-likelihood: {prob_tree_curr} ")
 
         # Alpha = (Log P_new - Log P_old) + Log Q_ratio
         alpha_aux = prob_tree_prop - prob_tree_curr + q_ratio
@@ -441,3 +469,39 @@ class TreeSamplerMH:
             valid_proposal = False     
 
         return valid_proposal, q_ratio
+
+    # ---------------- Visualise results ------------------------- #
+    def _trace_plot_log_likelihood(self):
+        """
+        Plots the trace plot for the log likelihood of the samplings.
+        """
+        if len(self.samplings_trees) <= 1:
+            print("No sampling has been performed yet!")
+
+        else:
+            xpoints = list(range(0, len(self.samplings_trees) - 1))
+
+            plt.plot(xpoints, self.log_likelihood_history)
+            plt.show()
+
+    def _size_of_the_tree(self, T):
+        """
+        Calculates the size of a tree.
+
+        Args:
+            T (list): A list of lists with the paths of the tree.
+
+        Returns:
+           tree_size (int): Returns the size of the tree |V_T|
+        """
+        #Identify all nodes in the tree
+        nodes_in_tree = set()
+        for path in T:
+            nodes_in_tree.update(path)
+        
+        tree_size = len(nodes_in_tree)
+
+        return tree_size
+    
+    def _trace_plot_tree_size(self):
+        return None
