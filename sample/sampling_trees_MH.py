@@ -23,6 +23,7 @@ class TreeSamplerMH:
         self.T_current = copy.deepcopy(T_initial)
         self.infected_nodes = infected_nodes 
         self.flag = flag
+        self.debug = False
 
         self.nodes_to_sample = infected_nodes
         self.unobserved_leaves = []
@@ -53,12 +54,12 @@ class TreeSamplerMH:
         
         accepted_count = 0
         
-        for _ in tqdm(range(n_iterations), desc="Sampling trees"):
+        for _ in range(n_iterations):#tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break 
             
             # Beta clamping to prevent math domain error
-            shape, scale = 2., 2.  
+            shape, scale = 2., 5.  
             beta = np.random.beta(shape, scale)
             beta = max(1e-9, min(beta, 1 - 1e-9))
 
@@ -87,6 +88,15 @@ class TreeSamplerMH:
             else:
                 self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
+            
+            print()
+            print(f"Current Tree: {self.T_current}")
+            print()
+            print(f"Nodes to sample: {self.nodes_to_sample}")
+            print()
+            print(f"Unobserved leaves: {self.unobserved_leaves}")
+            print()
+            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
 
             #Calculate the log likelihood for trace plot
             self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, beta))
@@ -406,6 +416,12 @@ class TreeSamplerMH:
         prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
 
+        if prob_tree_curr < - 20:
+            print("The log likelihood is less than -20!")
+            self.debug = True
+
+        print(f"log-likelihood: {prob_tree_curr} ")
+
         # Alpha = (Log P_new - Log P_old) + Log Q_ratio
         alpha_aux = prob_tree_prop - prob_tree_curr + q_ratio
 
@@ -454,9 +470,38 @@ class TreeSamplerMH:
 
         return valid_proposal, q_ratio
 
-    # ------ Visualise results -------- #
-    def _trace_plot_log_likelihood(self, n_iterations):
-        xpoints = list(range(0, n_iterations))
+    # ---------------- Visualise results ------------------------- #
+    def _trace_plot_log_likelihood(self):
+        """
+        Plots the trace plot for the log likelihood of the samplings.
+        """
+        if len(self.samplings_trees) <= 1:
+            print("No sampling has been performed yet!")
 
-        plt.plot(xpoints, self.log_likelihood_history)
-        plt.show()
+        else:
+            xpoints = list(range(0, len(self.samplings_trees) - 1))
+
+            plt.plot(xpoints, self.log_likelihood_history)
+            plt.show()
+
+    def _size_of_the_tree(self, T):
+        """
+        Calculates the size of a tree.
+
+        Args:
+            T (list): A list of lists with the paths of the tree.
+
+        Returns:
+           tree_size (int): Returns the size of the tree |V_T|
+        """
+        #Identify all nodes in the tree
+        nodes_in_tree = set()
+        for path in T:
+            nodes_in_tree.update(path)
+        
+        tree_size = len(nodes_in_tree)
+
+        return tree_size
+    
+    def _trace_plot_tree_size(self):
+        return None

@@ -7,6 +7,9 @@ This repository contains all the code necessary to reproduce
 
 #### Repository Structure
 `data/`:
+
 `epidemic_simulation/`:
+
 `sample/`:
+
 `visualization/`:
