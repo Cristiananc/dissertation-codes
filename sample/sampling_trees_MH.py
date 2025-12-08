@@ -9,7 +9,6 @@ import networkx as nx
 from functools import reduce
 import copy
 from tqdm import tqdm
-from time import sleep
 from .search_on_graphs import find_k_length_path
 
 class TreeSamplerMH:
@@ -82,6 +81,10 @@ class TreeSamplerMH:
                     #REJECT
                     self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
                     self.samplings.append(copy.deepcopy(self.T_current))
+
+            else:
+                self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
+                self.samplings.append(copy.deepcopy(self.T_current))
 
             #Compute the acceptance probability 
             alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
