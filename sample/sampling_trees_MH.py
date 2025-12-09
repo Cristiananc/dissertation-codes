@@ -58,7 +58,7 @@ class TreeSamplerMH:
                 break 
             
             # Beta clamping to prevent math domain error
-            shape, scale = 2., 5.  
+            shape, scale = 2., 2.  
             beta = np.random.beta(shape, scale)
             beta = max(1e-9, min(beta, 1 - 1e-9))
 
@@ -80,6 +80,7 @@ class TreeSamplerMH:
                     #ACCEPT
                     accepted_count += 1
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
+                    self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, beta))
 
                 else:
                     #REJECT
@@ -102,8 +103,6 @@ class TreeSamplerMH:
             print()
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
             """
-            #Calculate the log likelihood for trace plot
-            self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, beta))
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
         return self.samplings_trees
@@ -407,11 +406,14 @@ class TreeSamplerMH:
                 if v not in nodes_in_tree:
                     failed_events += 1
         
-        beta_aux = 1 - beta
-        prob_log = succes_events*math.log(beta)+ failed_events*math.log(beta_aux)
+        log_beta = math.log(max(1e-9, beta))
+        log_beta_aux = math.log(max(1e-9, 1 - beta)) # Use 1-beta here
+        
+        prob_log = succes_events * log_beta + failed_events * log_beta_aux
         print(beta)
         print(f"Succes events: {succes_events}")
         print(f"Failed events: {failed_events}")
+        print(prob_log)
 
         return prob_log
     
