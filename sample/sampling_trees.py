@@ -412,8 +412,6 @@ class TreeSampler:
             for v in G.neighbors(u):
                 if v not in nodes_in_tree:
                     failed_events += 1
-                if v in nodes_in_tree and self.G.nodes[u]['inf_time'] != self.G.nodes[u] + 1
-                    failed_events += 1
         
         log_beta = math.log(max(1e-9, beta))
         log_beta_aux = math.log(max(1e-9, 1 - beta)) # Use 1-beta here
