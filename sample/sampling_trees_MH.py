@@ -7,10 +7,11 @@ import random as rd
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
-from functools import reduce
 import copy
 from tqdm import tqdm
 from .search_on_graphs import find_k_length_path
+from ..epidemic_simulation.sir_simulation import fast_SIR
+from .helpers import check_feasibility_graphs
 
 class TreeSamplerMH:
     """
@@ -414,10 +415,10 @@ class TreeSamplerMH:
         log_beta_aux = math.log(max(1e-9, 1 - beta)) # Use 1-beta here
         
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
-        print(beta)
-        print(f"Succes events: {succes_events}")
-        print(f"Failed events: {failed_events}")
-        print(prob_log)
+        #print(beta)
+        #print(f"Succes events: {succes_events}")
+        #print(f"Failed events: {failed_events}")
+        #print(prob_log)
 
         return prob_log
     
@@ -438,7 +439,7 @@ class TreeSamplerMH:
         prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
 
-        print(f"log-likelihood: {prob_tree_curr} ")
+        #print(f"log-likelihood: {prob_tree_curr} ")
 
         # Alpha = (Log P_new - Log P_old) + Log Q_ratio
         alpha_aux = prob_tree_prop - prob_tree_curr + q_ratio
@@ -569,3 +570,24 @@ class TreeSamplerMH:
 
         new_beta = np.random.beta(c_posterior, d_posterior)
         self.beta = max(1e-9, min(new_beta, 1 - 1e-9))
+
+    
+    # ------------- Performs Naive Sampling ---------------- #
+    def naive_sampling(G, sampling_number, observed_nodes, initial_infecteds):
+        samplings = []
+        G_mutable = copy.deepcopy(G)
+
+        while len(samplings) < sampling_number:
+
+            p = np.random.uniform()
+
+            #In place modification of G
+            fast_SIR(G_mutable, initial_infecteds, p)
+
+            if check_feasibility_graphs(G, G_mutable, observed_nodes):
+                all_nodes = nx.get_node_attributes(G_mutable, "inf_time")
+                nodes_infected = [node for node, inf_time in all_nodes.items() if inf_time < math.inf]
+
+                samplings.append(nodes_infected)
+
+        return samplings
