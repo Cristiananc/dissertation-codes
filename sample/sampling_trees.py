@@ -13,7 +13,7 @@ from .search_on_graphs import find_k_length_path
 from ..epidemic_simulation.sir_simulation import fast_SIR
 from .helpers import check_feasibility_graphs
 
-class TreeSamplerMH:
+class TreeSampler:
     """
     MCMC Sampler for inferring infected nodes on a network with partial 
     information available.

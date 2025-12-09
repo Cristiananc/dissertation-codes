@@ -5,8 +5,8 @@ import copy
 from epidemic_simulation.sir_simulation import fast_SIR
 from epidemic_simulation.helpers import *
 from sample.helpers import *
-from sample.sampling_trees_MH import TreeSamplerMH
-from sample.sampling_trees import feasible_tree
+from sample.sampling_tree import TreeSampler
+from sample.search_on_graphs import feasible_tree
 
 #Loading our example of verification test
 with open('data/graphs/verification_test_graph.pickle', mode='rb') as f:
@@ -36,7 +36,7 @@ else:
     samplings_number = 100
 
     #Initialize class
-    sampler = TreeSamplerMH(G, T_initial, infected_nodes,flag=1)
+    sampler = TreeSampler(G, T_initial, infected_nodes,flag=1)
 
     #Run
     sampling = sampler.run(n_iterations=samplings_number)
