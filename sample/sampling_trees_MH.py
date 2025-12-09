@@ -254,15 +254,17 @@ class TreeSamplerMH:
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
-        This function performs a change of a path operation.
+        This function performs a change of path operation.
 
         Args:
             target_node (int): The node for which the path in the current tree will be changed.
         """
         t_index = self._get_path_index_for_node(target_node)
+        
         if t_index == -1: return
         
         old_path = self.T_current[t_index]
+
         if len(old_path) > 1:
             old_parent = old_path[1]
         else:
@@ -276,11 +278,11 @@ class TreeSamplerMH:
             if old_parent is not None:
                 if not self._is_node_used_in_tree(old_parent):
 
-                    if old_parent not in self.infected_nodes:
-                        self.T_current.append(old_path[1:])
-                        if old_parent not in self.unobserved_leaves:
-                            self.unobserved_leaves.append(old_parent)
-
+                    if old_parent not in self.unobserved_leaves:
+                        self.unobserved_leaves.append(old_parent)
+                
+                    self.T_current.append(old_path[1:])
+                    
 
     def _add_neighbor(self, node):
         """
@@ -334,17 +336,26 @@ class TreeSamplerMH:
         if len(self.T_current[t_index]) > 1:
             parent_node = self.T_current[t_index][1]
 
+        else: parent_node = None
+
         #print(f"Node deleted: {node}")
-        # Delete path from T_current 
-        del self.T_current[t_index]
-        self.G.nodes[node]['inf_time'] = math.inf
+        # Delete path from T_current
+        if parent_node is not None:
+            if len(self.T_current[t_index]) == 2:
+                del self.T_current[t_index]
+            else: 
+                self.T_current[t_index] = self.T_current[1:]
+                if not self._is_node_used_in_tree(parent_node):
+                    self.unobserved_leaves.append(parent_node)
 
-        list_index = self.nodes_to_sample.index(node)
+            self.G.nodes[node]['inf_time'] = math.inf
 
-        #Standard swap and pop
-        self.nodes_to_sample[list_index] = self.nodes_to_sample[-1]
-        self.nodes_to_sample.pop()
-        self.unobserved_leaves.remove(node)
+            list_index = self.nodes_to_sample.index(node)
+
+            #Standard swap and pop
+            self.nodes_to_sample[list_index] = self.nodes_to_sample[-1]
+            self.nodes_to_sample.pop()
+            self.unobserved_leaves.remove(node)
         
         return parent_node
 
