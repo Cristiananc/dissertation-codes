@@ -1,5 +1,7 @@
 """
-Disclaimer: Code refactored with AI assistance.
+Disclaimer: The author acknowledges the use of Gemini for assistance with code refactoring and debugging, 
+more specifically code modularization and verification of edge cases. All final implementation logic, 
+and resulting analysis remain the original work and responsability of the author.
 """
 
 import math
@@ -98,7 +100,7 @@ class TreeSampler:
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
-            #"""
+            """
             print()
             print(f"Current Tree: {self.T_current}")
             print()
@@ -107,7 +109,7 @@ class TreeSampler:
             print(f"Unobserved leaves: {self.unobserved_leaves}")
             print()
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
-            #"""
+            """
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
         return self.samplings_trees
@@ -267,7 +269,7 @@ class TreeSampler:
         Args:
             target_node (int): The node for which the path in the current tree will be changed.
         """
-        print("Changing path")
+        #print("Changing path")
         t_index = self._get_path_index_for_node(target_node)
         
         if t_index == -1: return
@@ -312,7 +314,7 @@ class TreeSampler:
 
         new_node =  neighb_available[rd.randrange(0, len( neighb_available))]
 
-        print(f"New node added: {new_node}")
+        #print(f"New node added: {new_node}")
         self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
         #Update state
@@ -350,7 +352,7 @@ class TreeSampler:
 
         #Reset infection time for deleted node
         self.G.nodes[node]['inf_time'] = math.inf
-        print({f"Node deleted: {node}"})
+        #print({f"Node deleted: {node}"})
 
         if node in self.nodes_to_sample:
             idx = self.nodes_to_sample.index(node)
@@ -417,10 +419,13 @@ class TreeSampler:
         log_beta_aux = math.log(max(1e-9, 1 - beta)) # Use 1-beta here
         
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
+
+        """ 
         print(f"Current beta: {beta}")
         print(f"Succes events: {succes_events}")
         print(f"Failed events: {failed_events}")
         print(f"prob_log: {prob_log}")
+        """
 
         return prob_log
     
@@ -552,10 +557,12 @@ class TreeSampler:
         n_success = len(nodes_in_tree) - 1
         n_fail = 0
 
+        """
         print("Tree statistics:")
         print(f"n_sucess: {n_success}" )
         print(f"n_fail: {n_fail}")
-
+        """
+        
         for u in nodes_in_tree:
             for v in G.neighbors(u):
                 if v not in nodes_in_tree:
