@@ -52,15 +52,19 @@ class TreeSamplerMH:
             return None
         
         accepted_count = 0
+
+        #Initialize Beta and Priors
+        self.c_prior = 2. #Hyperparameter for Beta prior
+        self.d_prior = 5. #Hyperparameter for Beta prior
+        self.beta = 0.5 #Initial value for Beta
+
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break 
             
-            # Beta clamping to prevent math domain error
-            shape, scale = 2., 2.  
-            beta = np.random.beta(shape, scale)
-            beta = max(1e-9, min(beta, 1 - 1e-9))
+            self._update_beta_gibbs()
+            beta = self.beta
 
             # Capture full state for reversion
             previous_T = copy.deepcopy(self.T_current)
@@ -520,3 +524,48 @@ class TreeSamplerMH:
     
     def _trace_plot_tree_size(self):
         return None
+
+    # ----------------- Beta (Gibbs update) ------------- #
+    def _get_tree_statistics(self, G, T):
+        """
+        Computes the N_success and N_fail in a given tree for the Gibbs step.
+
+        Args:
+            G (networkx graph): A graph G that we are sampling from.
+            T (list): A list of lists with the paths of the tree.
+
+        Returns:
+           n_success, n_fail  (int, int): Number of sucessfull and failed 
+           transmission events for T.
+        """
+
+        nodes_in_tree = set()
+        for path in T:
+            for node in path:
+                nodes_in_tree.add(node)
+
+        if len(nodes_in_tree) <= 1:
+            return 0
+        
+        # Succes Events (V_T - 1)
+        n_success = len(nodes_in_tree) - 1
+        n_fail = 0
+
+        for u in nodes_in_tree:
+            for v in G.neighbors(u):
+                if v not in nodes_in_tree:
+                    n_fail += 1
+
+        return n_success, n_fail
+    def _update_beta_gibbs(self):
+        """
+        Performs the Gibbs update step for the beta parameter.
+        P(beta | T) ~ Beta(alpha_prior + N_success, beta_prior + N_fail)
+        """
+
+        n_success, n_fail = self._get_tree_statistics(self.G, self.T_current)
+        c_posterior = self.c_prior + n_success
+        d_posterior = self.d_prior + n_fail
+
+        new_beta = np.random.beta(c_posterior, d_posterior)
+        self.beta = max(1e-9, min(new_beta, 1 - 1e-9))
