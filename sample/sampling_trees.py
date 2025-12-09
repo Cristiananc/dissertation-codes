@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import copy
 from tqdm import tqdm
 from .search_on_graphs import find_k_length_path
-from ..epidemic_simulation.sir_simulation import fast_SIR
+from epidemic_simulation.sir_simulation import fast_SIR
 from .helpers import check_feasibility_graphs
 
 class TreeSampler:
@@ -98,7 +98,7 @@ class TreeSampler:
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
-            """
+            #"""
             print()
             print(f"Current Tree: {self.T_current}")
             print()
@@ -107,7 +107,7 @@ class TreeSampler:
             print(f"Unobserved leaves: {self.unobserved_leaves}")
             print()
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
-            """
+            #"""
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
         return self.samplings_trees
@@ -267,6 +267,7 @@ class TreeSampler:
         Args:
             target_node (int): The node for which the path in the current tree will be changed.
         """
+        print("Changing path")
         t_index = self._get_path_index_for_node(target_node)
         
         if t_index == -1: return
@@ -311,7 +312,7 @@ class TreeSampler:
 
         new_node =  neighb_available[rd.randrange(0, len( neighb_available))]
 
-        #print(f"New node added: {new_node}")
+        print(f"New node added: {new_node}")
         self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
         #Update state
@@ -349,6 +350,7 @@ class TreeSampler:
 
         #Reset infection time for deleted node
         self.G.nodes[node]['inf_time'] = math.inf
+        print({f"Node deleted: {node}"})
 
         if node in self.nodes_to_sample:
             idx = self.nodes_to_sample.index(node)
@@ -410,15 +412,17 @@ class TreeSampler:
             for v in G.neighbors(u):
                 if v not in nodes_in_tree:
                     failed_events += 1
+                if v in nodes_in_tree and self.G.nodes[u]['inf_time'] != self.G.nodes[u] + 1
+                    failed_events += 1
         
         log_beta = math.log(max(1e-9, beta))
         log_beta_aux = math.log(max(1e-9, 1 - beta)) # Use 1-beta here
         
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
-        #print(beta)
-        #print(f"Succes events: {succes_events}")
-        #print(f"Failed events: {failed_events}")
-        #print(prob_log)
+        print(f"Current beta: {beta}")
+        print(f"Succes events: {succes_events}")
+        print(f"Failed events: {failed_events}")
+        print(f"prob_log: {prob_log}")
 
         return prob_log
     
@@ -438,8 +442,6 @@ class TreeSampler:
 
         prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
-
-        #print(f"log-likelihood: {prob_tree_curr} ")
 
         # Alpha = (Log P_new - Log P_old) + Log Q_ratio
         alpha_aux = prob_tree_prop - prob_tree_curr + q_ratio
@@ -495,7 +497,7 @@ class TreeSampler:
         Plots the trace plot for the log likelihood of the samplings.
         """
         if len(self.log_likelihood_history) <= 1:
-            print("No sampling has been performed yet!")
+            print("No valid sampling has been performed yet!")
         else:
             plt.figure(figsize=(10, 5))
             plt.plot(self.log_likelihood_history)
@@ -551,6 +553,10 @@ class TreeSampler:
         # Succes Events (V_T - 1)
         n_success = len(nodes_in_tree) - 1
         n_fail = 0
+
+        print("Tree statistics:")
+        print(f"n_sucess: {n_success}" )
+        print(f"n_fail: {n_fail}")
 
         for u in nodes_in_tree:
             for v in G.neighbors(u):
