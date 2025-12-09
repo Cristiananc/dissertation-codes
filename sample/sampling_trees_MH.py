@@ -23,7 +23,6 @@ class TreeSamplerMH:
         self.T_current = copy.deepcopy(T_initial)
         self.infected_nodes = infected_nodes 
         self.flag = flag
-        self.debug = False
 
         self.nodes_to_sample = infected_nodes
         self.unobserved_leaves = []
@@ -54,7 +53,7 @@ class TreeSamplerMH:
         
         accepted_count = 0
         
-        for _ in range(n_iterations):#tqdm(range(n_iterations), desc="Sampling trees"):
+        for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break 
             
@@ -71,6 +70,8 @@ class TreeSamplerMH:
 
             valid_proposal, q_ratio = self._propose_next_state()
 
+            current_ll = self._prob_tree_log(previous_G, previous_T, beta)
+
             if valid_proposal:
                 alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
                 p_uniform = math.log(np.random.uniform())
@@ -84,11 +85,14 @@ class TreeSamplerMH:
                     #REJECT
                     self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
+                    self.log_likelihood_history.append(current_ll)
 
             else:
                 self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
+                self.log_likelihood_history.append(current_ll)
             
+            """
             print()
             print(f"Current Tree: {self.T_current}")
             print()
@@ -97,7 +101,7 @@ class TreeSamplerMH:
             print(f"Unobserved leaves: {self.unobserved_leaves}")
             print()
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
-
+            """
             #Calculate the log likelihood for trace plot
             self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, beta))
 
@@ -292,7 +296,7 @@ class TreeSamplerMH:
             node (int): The parent of the new node that will be added.
 
         Returns:
-            len(neighb_available) (int): The size of the list of available neighbors of the 
+            len_neighb_available (int): The size of the list of available neighbors of the 
             parent node that can be added in the tree.
         """
 
@@ -315,7 +319,9 @@ class TreeSamplerMH:
         if node in self.unobserved_leaves:
             self.unobserved_leaves.remove(node)
 
-        return len(neighb_available)
+        len_neighb_available = len(neighb_available)
+
+        return len_neighb_available
 
     def _delete_node(self, node):
         """
@@ -325,37 +331,47 @@ class TreeSamplerMH:
             node (int): The node which will be deleted from the current feasible tree.
 
         Returns:
-            parent_node (int): The parent of the deleted node in the current feasible tree.
+            parent_node (int or None): The parent of the deleted node in the current feasible tree.
         """
         t_index = self._get_path_index_for_node(node)
-
         if t_index == -1: return None
+
+        current_path = list(self.T_current[t_index])
 
         #The path structure is [Leaf, Parent] based on _add_neighbor logic.
         # Hence the parent is at index 1.
-        if len(self.T_current[t_index]) > 1:
-            parent_node = self.T_current[t_index][1]
-
+        if len(current_path) > 1: parent_node = current_path[1]
         else: parent_node = None
 
-        #print(f"Node deleted: {node}")
-        # Delete path from T_current
-        if parent_node is not None:
-            if len(self.T_current[t_index]) == 2:
-                del self.T_current[t_index]
-            else: 
-                self.T_current[t_index] = self.T_current[1:]
-                if not self._is_node_used_in_tree(parent_node):
-                    self.unobserved_leaves.append(parent_node)
+        #Reset infection time for deleted node
+        self.G.nodes[node]['inf_time'] = math.inf
 
-            self.G.nodes[node]['inf_time'] = math.inf
+        if node in self.nodes_to_sample:
+            idx = self.nodes_to_sample.index(node)
 
-            list_index = self.nodes_to_sample.index(node)
-
-            #Standard swap and pop
-            self.nodes_to_sample[list_index] = self.nodes_to_sample[-1]
+            #Swap and pop
+            self.nodes_to_sample[idx] = self.nodes_to_sample[-1]
             self.nodes_to_sample.pop()
+        
+        if node in self.unobserved_leaves:
             self.unobserved_leaves.remove(node)
+
+        del self.T_current[t_index]
+
+        #Handle the parent node
+        if parent_node is not None:
+            if not self._is_node_used_in_tree(parent_node):
+                retained_path = current_path[1:]
+
+                if len(retained_path) > 0:
+                    self.T_current.append(retained_path)
+
+                    if parent_node not in self.infected_nodes:
+                        self.unobserved_leaves.append(parent_node)
+                    
+                    if parent_node not in self.nodes_to_sample:
+                        self.nodes_to_sample.append(parent_node)
+
         
         return parent_node
 
@@ -376,7 +392,8 @@ class TreeSamplerMH:
         #Identify all nodes in the tree
         nodes_in_tree = set()
         for path in T:
-            nodes_in_tree.update(path)
+            for node in path:
+                nodes_in_tree.add(node)
 
         if len(nodes_in_tree) <= 1:
             return 0
@@ -392,6 +409,9 @@ class TreeSamplerMH:
         
         beta_aux = 1 - beta
         prob_log = succes_events*math.log(beta)+ failed_events*math.log(beta_aux)
+        print(beta)
+        print(f"Succes events: {succes_events}")
+        print(f"Failed events: {failed_events}")
 
         return prob_log
     
@@ -411,10 +431,6 @@ class TreeSamplerMH:
 
         prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
         prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
-
-        if prob_tree_curr < - 20:
-            print("The log likelihood is less than -20!")
-            self.debug = True
 
         print(f"log-likelihood: {prob_tree_curr} ")
 
@@ -471,13 +487,14 @@ class TreeSamplerMH:
         """
         Plots the trace plot for the log likelihood of the samplings.
         """
-        if len(self.samplings_trees) <= 1:
+        if len(self.log_likelihood_history) <= 1:
             print("No sampling has been performed yet!")
-
         else:
-            xpoints = list(range(0, len(self.samplings_trees) - 1))
-
-            plt.plot(xpoints, self.log_likelihood_history)
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.log_likelihood_history)
+            #plt.title("Log-Likelihood Trace")
+            plt.xlabel("Iteration")
+            plt.ylabel("Log-Likelihood")
             plt.show()
 
     def _size_of_the_tree(self, T):
