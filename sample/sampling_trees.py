@@ -371,7 +371,7 @@ class TreeSampler:
             if not self._is_node_used_in_tree(parent_node):
                 retained_path = current_path[1:]
 
-                if len(retained_path) > 0:
+                if len(retained_path) > 1:
                     self.T_current.append(retained_path)
 
                     if parent_node not in self.infected_nodes:
@@ -414,6 +414,7 @@ class TreeSampler:
             for v in G.neighbors(u):
                 if v not in nodes_in_tree:
                     failed_events += 1
+                
         
         log_beta = math.log(max(1e-9, beta))
         log_beta_aux = math.log(max(1e-9, 1 - beta)) # Use 1-beta here
