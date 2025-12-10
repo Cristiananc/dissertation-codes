@@ -11,9 +11,13 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import copy
 from tqdm import tqdm
+import statistics as stat
 from .search_on_graphs import find_k_length_path
 from epidemic_simulation.sir_simulation import fast_SIR
 from .helpers import check_feasibility_graphs
+
+#Set output prints to a txt file
+f = open("output.txt", "a")
 
 class TreeSampler:
     """
@@ -103,14 +107,14 @@ class TreeSampler:
                 self.log_likelihood_history.append(current_ll)
             
             #"""
-            print()
-            print(f"Current Tree: {self.T_current}")
-            print()
-            print(f"Nodes to sample: {self.nodes_to_sample}")
-            print()
-            print(f"Unobserved leaves: {self.unobserved_leaves}")
-            print()
-            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
+            print(file=f)
+            print(f"Current Tree: {self.T_current}", file=f)
+            print(file=f)
+            print(f"Nodes to sample: {self.nodes_to_sample}",file=f)
+            print(file=f)
+            print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
+            print(file=f)
+            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
             #"""
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
@@ -271,7 +275,7 @@ class TreeSampler:
         Args:
             target_node (int): The node for which the path in the current tree will be changed.
         """
-        print("Changing path")
+        print("Changing path",file=f)
         t_index = self._get_path_index_for_node(target_node)
         
         if t_index == -1: return
@@ -316,7 +320,7 @@ class TreeSampler:
 
         new_node =  neighb_available[rd.randrange(0, len( neighb_available))]
 
-        print(f"New node added: {new_node}")
+        print(f"New node added: {new_node}",file=f)
         self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
         #Update state
@@ -354,7 +358,7 @@ class TreeSampler:
 
         #Reset infection time for deleted node
         self.G.nodes[node]['inf_time'] = math.inf
-        print({f"Node deleted: {node}"})
+        print({f"Node deleted: {node}"},file=f)
 
         if node in self.nodes_to_sample:
             idx = self.nodes_to_sample.index(node)
@@ -424,10 +428,10 @@ class TreeSampler:
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
 
         #""" 
-        print(f"Current beta: {beta}")
-        print(f"Succes events: {succes_events}")
-        print(f"Failed events: {failed_events}")
-        print(f"prob_log: {prob_log}")
+        print(f"Current beta: {beta}",file=f)
+        print(f"Succes events: {succes_events}",file=f)
+        print(f"Failed events: {failed_events}",file=f)
+        print(f"prob_log: {prob_log}",file=f)
         #"""
 
         return prob_log
@@ -521,6 +525,7 @@ class TreeSampler:
         else:
             plt.figure(figsize=(10, 5))
             plt.plot(self.beta_history)
+            #plt.axhline(y= stat.mean(self.beta_history), color='g', linestyle='-')
             plt.xlabel("Iteration")
             plt.ylabel(r"$\beta$")
             plt.show()
@@ -574,9 +579,9 @@ class TreeSampler:
         n_fail = 0
 
         #"""
-        print("Tree statistics:")
-        print(f"n_sucess: {n_success}" )
-        print(f"n_fail: {n_fail}")
+        print("Tree statistics:",file=f)
+        print(f"n_sucess: {n_success}" ,file=f)
+        print(f"n_fail: {n_fail}",file=f)
         #"""
         
         for u in nodes_in_tree:
