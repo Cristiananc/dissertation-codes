@@ -31,6 +31,7 @@ class TreeSampler:
         self.unobserved_leaves = []
         self.samplings_trees = [T_initial]
         self.log_likelihood_history = []
+        self.beta_history = []
 
         # Initialization logic
         # Adding intermediate nodes to our list of possible nodes to sample
@@ -60,7 +61,7 @@ class TreeSampler:
         self.c_prior = 2. #Hyperparameter for Beta prior
         self.d_prior = 5. #Hyperparameter for Beta prior
         self.beta = 0.5 #Initial value for Beta
-
+        self.beta_history.append(self.beta)
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
@@ -78,6 +79,7 @@ class TreeSampler:
             valid_proposal, q_ratio = self._propose_next_state()
 
             current_ll = self._prob_tree_log(previous_G, previous_T, beta)
+            self.beta_history.append(self.beta)
 
             if valid_proposal:
                 alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
@@ -100,7 +102,7 @@ class TreeSampler:
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
-            """
+            #"""
             print()
             print(f"Current Tree: {self.T_current}")
             print()
@@ -109,7 +111,7 @@ class TreeSampler:
             print(f"Unobserved leaves: {self.unobserved_leaves}")
             print()
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
-            """
+            #"""
 
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
         return self.samplings_trees
@@ -269,7 +271,7 @@ class TreeSampler:
         Args:
             target_node (int): The node for which the path in the current tree will be changed.
         """
-        #print("Changing path")
+        print("Changing path")
         t_index = self._get_path_index_for_node(target_node)
         
         if t_index == -1: return
@@ -314,7 +316,7 @@ class TreeSampler:
 
         new_node =  neighb_available[rd.randrange(0, len( neighb_available))]
 
-        #print(f"New node added: {new_node}")
+        print(f"New node added: {new_node}")
         self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
         #Update state
@@ -352,7 +354,7 @@ class TreeSampler:
 
         #Reset infection time for deleted node
         self.G.nodes[node]['inf_time'] = math.inf
-        #print({f"Node deleted: {node}"})
+        print({f"Node deleted: {node}"})
 
         if node in self.nodes_to_sample:
             idx = self.nodes_to_sample.index(node)
@@ -421,12 +423,12 @@ class TreeSampler:
         
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
 
-        """ 
+        #""" 
         print(f"Current beta: {beta}")
         print(f"Succes events: {succes_events}")
         print(f"Failed events: {failed_events}")
         print(f"prob_log: {prob_log}")
-        """
+        #"""
 
         return prob_log
     
@@ -510,6 +512,19 @@ class TreeSampler:
             plt.ylabel("Log-Likelihood")
             plt.show()
 
+    def _trace_plot_beta(self):
+        """
+        Plots the trace plot for the beta variable.
+        """        
+        if len(self.beta_history) <= 1:
+            print("No valid sampling has been performed yet!")
+        else:
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.beta_history)
+            plt.xlabel("Iteration")
+            plt.ylabel(r"$\beta$")
+            plt.show()
+
     def _size_of_the_tree(self, T):
         """
         Calculates the size of a tree.
@@ -558,11 +573,11 @@ class TreeSampler:
         n_success = len(nodes_in_tree) - 1
         n_fail = 0
 
-        """
+        #"""
         print("Tree statistics:")
         print(f"n_sucess: {n_success}" )
         print(f"n_fail: {n_fail}")
-        """
+        #"""
         
         for u in nodes_in_tree:
             for v in G.neighbors(u):
@@ -570,6 +585,7 @@ class TreeSampler:
                     n_fail += 1
 
         return n_success, n_fail
+    
     def _update_beta_gibbs(self):
         """
         Performs the Gibbs update step for the beta parameter.
