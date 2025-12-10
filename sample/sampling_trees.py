@@ -377,9 +377,10 @@ class TreeSampler:
             if not self._is_node_used_in_tree(parent_node):
                 retained_path = current_path[1:]
 
-                if len(retained_path) > 1:
+                if len(retained_path) > 1: #If the retained path is [parent_node], this node is already somewhere in the tree
                     self.T_current.append(retained_path)
-
+                
+                if len(retained_path) > 0:
                     if parent_node not in self.infected_nodes:
                         self.unobserved_leaves.append(parent_node)
                     
@@ -577,17 +578,17 @@ class TreeSampler:
         # Succes Events (V_T - 1)
         n_success = len(nodes_in_tree) - 1
         n_fail = 0
-
-        #"""
-        print("Tree statistics:",file=f)
-        print(f"n_sucess: {n_success}" ,file=f)
-        print(f"n_fail: {n_fail}",file=f)
-        #"""
         
         for u in nodes_in_tree:
             for v in G.neighbors(u):
                 if v not in nodes_in_tree:
                     n_fail += 1
+        
+        #"""
+        print("Tree statistics:",file=f)
+        print(f"n_sucess: {n_success}" ,file=f)
+        print(f"n_fail: {n_fail}",file=f)
+        #"""
 
         return n_success, n_fail
     
