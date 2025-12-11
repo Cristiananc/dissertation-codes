@@ -62,8 +62,8 @@ class TreeSampler:
         accepted_count = 0
 
         #Initialize Beta and Priors
-        self.c_prior = 2. #Hyperparameter for Beta prior
-        self.d_prior = 5. #Hyperparameter for Beta prior
+        self.c_prior = 1. #Hyperparameter for Beta prior
+        self.d_prior = 1. #Hyperparameter for Beta prior
         self.beta = 0.5 #Initial value for Beta
         self.beta_history.append(self.beta)
         
