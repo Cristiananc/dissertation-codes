@@ -140,8 +140,8 @@ class TreeSampler:
             len_neigh = self._add_neighbor(node_addition)
 
             if len_neigh is not None and len_neigh > 0:
-                # Foward: 1/N * 1/len_neigh | Reverse: 1/Leaves_new
-                n_sample = len(self.nodes_to_sample)
+                # Foward: 1/N_sample_old * 1/len_neigh | Reverse: 1/Leaves_new
+                n_sample = len(self.nodes_to_sample) - 1 #The list already includes the new node added
                 n_leaves_new = len(self.unobserved_leaves)
 
                 if n_leaves_new > 0:
