@@ -62,9 +62,9 @@ class TreeSampler:
         accepted_count = 0
 
         #Initialize Beta and Priors
-        self.c_prior = 1. #Hyperparameter for Beta prior
-        self.d_prior = 1. #Hyperparameter for Beta prior
-        self.beta = 0.5 #Initial value for Beta
+        self.c_prior = 2. #Hyperparameter for Beta prior
+        self.d_prior = 5. #Hyperparameter for Beta prior
+        self.beta = 0.1 #Initial value for Beta
         self.beta_history.append(self.beta)
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
@@ -117,6 +117,7 @@ class TreeSampler:
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
             #"""
 
+        print()
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
         return self.samplings_trees
 
@@ -259,14 +260,14 @@ class TreeSampler:
         self.T_current[index] = new_path
 
         #Clean up tracking lists 
-        for n in new_path[1:-1]:
+        for n in new_path:
             #If a leaf becomes part of a path for the new_node, it is no longer a leaf
             if n in self.unobserved_leaves:
                 self.unobserved_leaves.remove(n)
             
             if n not in self.nodes_to_sample:
                 self.nodes_to_sample.append(n)
-    
+            
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
@@ -280,7 +281,7 @@ class TreeSampler:
         
         if t_index == -1: return
         
-        old_path = self.T_current[t_index]
+        old_path = list(self.T_current[t_index])
 
         if len(old_path) > 1:
             old_parent = old_path[1]
