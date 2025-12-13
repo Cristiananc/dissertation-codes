@@ -1,7 +1,7 @@
 """
-Disclaimer: The author acknowledges the use of Gemini for assistance with code refactoring and debugging, 
-more specifically code modularization and verification of edge cases. All final implementation logic, 
-and resulting analysis remain the original work and responsability of the author.
+Disclaimer: Code refactored with AI assistance, more specifically on code modularization and 
+verification of edge cases. All final implementation logic, and resulting analysis remain the 
+original work and responsability of the author.
 """
 
 import math
@@ -10,7 +10,7 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import copy
-from tqdm import tqdm
+from tqdm import tqdm 
 import statistics as stat
 from .search_on_graphs import find_k_length_path
 from epidemic_simulation.sir_simulation import fast_SIR
@@ -25,7 +25,7 @@ class TreeSampler:
     information available.
     """
     
-    def __init__(self, G, T_initial, infected_nodes, flag=0):
+    def __init__(self, G, T_initial, infected_nodes, seed=None, flag=0):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
         self.infected_nodes = infected_nodes 
@@ -35,7 +35,12 @@ class TreeSampler:
         self.unobserved_leaves = []
         self.samplings_trees = [T_initial]
         self.log_likelihood_history = []
-        self.beta_history = []
+        #self.beta_history = []
+
+        if seed is not None:
+          import random as rd
+          rd.seed(seed)
+          self.seed = seed
 
         # Initialization logic
         # Adding intermediate nodes to our list of possible nodes to sample
@@ -64,14 +69,14 @@ class TreeSampler:
         #Initialize Beta and Priors
         self.c_prior = 2. #Hyperparameter for Beta prior
         self.d_prior = 5. #Hyperparameter for Beta prior
-        self.beta = 0.1 #Initial value for Beta
-        self.beta_history.append(self.beta)
+        self.beta = 0.3 #Initial value for Beta
+        #self.beta_history.append(self.beta)
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break 
             
-            self._update_beta_gibbs()
+            #self._update_beta_gibbs()
             beta = self.beta
 
             # Capture full state for reversion
@@ -83,7 +88,7 @@ class TreeSampler:
             valid_proposal, q_ratio = self._propose_next_state()
 
             current_ll = self._prob_tree_log(previous_G, previous_T, beta)
-            self.beta_history.append(self.beta)
+            #self.beta_history.append(self.beta)
 
             if valid_proposal:
                 alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
@@ -227,7 +232,7 @@ class TreeSampler:
             if node in path:
                 counter +=1
         
-        if counter > 1: return True
+        if counter > 0: return True
         else: return False
 
 
@@ -267,6 +272,25 @@ class TreeSampler:
             
             if n not in self.nodes_to_sample:
                 self.nodes_to_sample.append(n)
+
+    def _is_ancestor_to_any_node(self, node):
+        """
+        Helper to check if 'node' acts as a ancestor to any other node in T_current.
+
+        Args:
+            node (int): Node that will be check if it has any child.
+
+        Returns:
+            (bool) : True or False.
+        """
+        for path in self.T_current:
+            # Assuming path structure is [Child, Parent, ...]
+            # If the path has a parent at index 1, and that parent is 'node'
+            if len(path) > 1:
+                for i in path[1:]:
+                    if path[i] == node:
+                        return True
+        return False
             
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
@@ -289,6 +313,9 @@ class TreeSampler:
             old_parent = None
 
         new_path = self._calculate_new_path(target_node)
+
+        #if new_path[1] == old_path[1]:
+        #    return
 
         if new_path is not None:
             self._assign_and_track_new_path(t_index, new_path)
@@ -362,11 +389,7 @@ class TreeSampler:
         print({f"Node deleted: {node}"},file=f)
 
         if node in self.nodes_to_sample:
-            idx = self.nodes_to_sample.index(node)
-
-            #Swap and pop
-            self.nodes_to_sample[idx] = self.nodes_to_sample[-1]
-            self.nodes_to_sample.pop()
+            self.nodes_to_sample.remove(node)
         
         if node in self.unobserved_leaves:
             self.unobserved_leaves.remove(node)
@@ -378,17 +401,18 @@ class TreeSampler:
             if not self._is_node_used_in_tree(parent_node):
                 retained_path = current_path[1:]
 
-                if len(retained_path) > 1: #If the retained path is [parent_node], this node is already somewhere in the tree
+                if len(retained_path) > 0:
                     self.T_current.append(retained_path)
                 
-                if len(retained_path) > 0:
-                    if parent_node not in self.infected_nodes:
-                        self.unobserved_leaves.append(parent_node)
-                    
-                    if parent_node not in self.nodes_to_sample:
-                        self.nodes_to_sample.append(parent_node)
-
         
+        if not self._is_ancestor_to_any_node(parent_node):
+            if parent_node not in self.unobserved_leaves:
+                if parent_node not in self.infected_nodes:
+                    self.unobserved_leaves.append(parent_node)
+                    
+            if parent_node not in self.nodes_to_sample:
+                self.nodes_to_sample.append(parent_node)
+
         return parent_node
 
     # ---------- Compute probabilities -------------------#
