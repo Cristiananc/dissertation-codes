@@ -1,7 +1,7 @@
 """
-Disclaimer: The author acknowledges the use of Gemini for assistance with code refactoring and debugging, 
-more specifically code modularization and verification of edge cases. All final implementation logic, 
-and resulting analysis remain the original work and responsability of the author.
+Disclaimer: Code refactored with AI assistance, more specifically on code modularization and 
+verification of edge cases. All final implementation logic, and resulting analysis remain the 
+original work and responsability of the author.
 """
 
 import math
@@ -10,10 +10,14 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 import copy
-from tqdm import tqdm
+from tqdm import tqdm 
+import statistics as stat
 from .search_on_graphs import find_k_length_path
 from epidemic_simulation.sir_simulation import fast_SIR
 from .helpers import check_feasibility_graphs
+
+#Set output prints to a txt file
+f = open("output.txt", "a")
 
 class TreeSampler:
     """
@@ -21,7 +25,7 @@ class TreeSampler:
     information available.
     """
     
-    def __init__(self, G, T_initial, infected_nodes, flag=0):
+    def __init__(self, G, T_initial, infected_nodes, seed=None, flag=0):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
         self.infected_nodes = infected_nodes 
@@ -31,6 +35,12 @@ class TreeSampler:
         self.unobserved_leaves = []
         self.samplings_trees = [T_initial]
         self.log_likelihood_history = []
+        #self.beta_history = []
+
+        if seed is not None:
+          import random as rd
+          rd.seed(seed)
+          self.seed = seed
 
         # Initialization logic
         # Adding intermediate nodes to our list of possible nodes to sample
@@ -59,14 +69,14 @@ class TreeSampler:
         #Initialize Beta and Priors
         self.c_prior = 2. #Hyperparameter for Beta prior
         self.d_prior = 5. #Hyperparameter for Beta prior
-        self.beta = 0.5 #Initial value for Beta
-
+        self.beta = 0.3 #Initial value for Beta
+        #self.beta_history.append(self.beta)
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample:
                 break 
             
-            self._update_beta_gibbs()
+            #self._update_beta_gibbs()
             beta = self.beta
 
             # Capture full state for reversion
@@ -78,6 +88,7 @@ class TreeSampler:
             valid_proposal, q_ratio = self._propose_next_state()
 
             current_ll = self._prob_tree_log(previous_G, previous_T, beta)
+            #self.beta_history.append(self.beta)
 
             if valid_proposal:
                 alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
@@ -100,17 +111,18 @@ class TreeSampler:
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
-            """
-            print()
-            print(f"Current Tree: {self.T_current}")
-            print()
-            print(f"Nodes to sample: {self.nodes_to_sample}")
-            print()
-            print(f"Unobserved leaves: {self.unobserved_leaves}")
-            print()
-            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}")
-            """
+            #"""
+            print(file=f)
+            print(f"Current Tree: {self.T_current}", file=f)
+            print(file=f)
+            print(f"Nodes to sample: {self.nodes_to_sample}",file=f)
+            print(file=f)
+            print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
+            print(file=f)
+            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
+            #"""
 
+        print()
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
         return self.samplings_trees
 
@@ -134,8 +146,8 @@ class TreeSampler:
             len_neigh = self._add_neighbor(node_addition)
 
             if len_neigh is not None and len_neigh > 0:
-                # Foward: 1/N * 1/len_neigh | Reverse: 1/Leaves_new
-                n_sample = len(self.nodes_to_sample)
+                # Foward: 1/N_sample_old * 1/len_neigh | Reverse: 1/Leaves_new
+                n_sample = len(self.nodes_to_sample) - 1 #The list already includes the new node added
                 n_leaves_new = len(self.unobserved_leaves)
 
                 if n_leaves_new > 0:
@@ -220,7 +232,7 @@ class TreeSampler:
             if node in path:
                 counter +=1
         
-        if counter > 1: return True
+        if counter > 0: return True
         else: return False
 
 
@@ -253,14 +265,33 @@ class TreeSampler:
         self.T_current[index] = new_path
 
         #Clean up tracking lists 
-        for n in new_path[1:-1]:
+        for n in new_path:
             #If a leaf becomes part of a path for the new_node, it is no longer a leaf
             if n in self.unobserved_leaves:
                 self.unobserved_leaves.remove(n)
             
             if n not in self.nodes_to_sample:
                 self.nodes_to_sample.append(n)
-    
+
+    def _is_ancestor_to_any_node(self, node):
+        """
+        Helper to check if 'node' acts as a ancestor to any other node in T_current.
+
+        Args:
+            node (int): Node that will be check if it has any child.
+
+        Returns:
+            (bool) : True or False.
+        """
+        for path in self.T_current:
+            # Assuming path structure is [Child, Parent, ...]
+            # If the path has a parent at index 1, and that parent is 'node'
+            if len(path) > 1:
+                for i in path[1:]:
+                    if path[i] == node:
+                        return True
+        return False
+            
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
@@ -269,12 +300,12 @@ class TreeSampler:
         Args:
             target_node (int): The node for which the path in the current tree will be changed.
         """
-        #print("Changing path")
+        print("Changing path",file=f)
         t_index = self._get_path_index_for_node(target_node)
         
         if t_index == -1: return
         
-        old_path = self.T_current[t_index]
+        old_path = list(self.T_current[t_index])
 
         if len(old_path) > 1:
             old_parent = old_path[1]
@@ -282,6 +313,9 @@ class TreeSampler:
             old_parent = None
 
         new_path = self._calculate_new_path(target_node)
+
+        #if new_path[1] == old_path[1]:
+        #    return
 
         if new_path is not None:
             self._assign_and_track_new_path(t_index, new_path)
@@ -314,7 +348,7 @@ class TreeSampler:
 
         new_node =  neighb_available[rd.randrange(0, len( neighb_available))]
 
-        #print(f"New node added: {new_node}")
+        print(f"New node added: {new_node}",file=f)
         self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
         #Update state
@@ -352,14 +386,10 @@ class TreeSampler:
 
         #Reset infection time for deleted node
         self.G.nodes[node]['inf_time'] = math.inf
-        #print({f"Node deleted: {node}"})
+        print({f"Node deleted: {node}"},file=f)
 
         if node in self.nodes_to_sample:
-            idx = self.nodes_to_sample.index(node)
-
-            #Swap and pop
-            self.nodes_to_sample[idx] = self.nodes_to_sample[-1]
-            self.nodes_to_sample.pop()
+            self.nodes_to_sample.remove(node)
         
         if node in self.unobserved_leaves:
             self.unobserved_leaves.remove(node)
@@ -371,16 +401,18 @@ class TreeSampler:
             if not self._is_node_used_in_tree(parent_node):
                 retained_path = current_path[1:]
 
-                if len(retained_path) > 1:
+                if len(retained_path) > 0:
                     self.T_current.append(retained_path)
-
-                    if parent_node not in self.infected_nodes:
-                        self.unobserved_leaves.append(parent_node)
-                    
-                    if parent_node not in self.nodes_to_sample:
-                        self.nodes_to_sample.append(parent_node)
-
+                
         
+        if not self._is_ancestor_to_any_node(parent_node):
+            if parent_node not in self.unobserved_leaves:
+                if parent_node not in self.infected_nodes:
+                    self.unobserved_leaves.append(parent_node)
+                    
+            if parent_node not in self.nodes_to_sample:
+                self.nodes_to_sample.append(parent_node)
+
         return parent_node
 
     # ---------- Compute probabilities -------------------#
@@ -421,12 +453,12 @@ class TreeSampler:
         
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
 
-        """ 
-        print(f"Current beta: {beta}")
-        print(f"Succes events: {succes_events}")
-        print(f"Failed events: {failed_events}")
-        print(f"prob_log: {prob_log}")
-        """
+        #""" 
+        print(f"Current beta: {beta}",file=f)
+        print(f"Succes events: {succes_events}",file=f)
+        print(f"Failed events: {failed_events}",file=f)
+        print(f"prob_log: {prob_log}",file=f)
+        #"""
 
         return prob_log
     
@@ -510,6 +542,20 @@ class TreeSampler:
             plt.ylabel("Log-Likelihood")
             plt.show()
 
+    def _trace_plot_beta(self):
+        """
+        Plots the trace plot for the beta variable.
+        """        
+        if len(self.beta_history) <= 1:
+            print("No valid sampling has been performed yet!")
+        else:
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.beta_history)
+            #plt.axhline(y= stat.mean(self.beta_history), color='g', linestyle='-')
+            plt.xlabel("Iteration")
+            plt.ylabel(r"$\beta$")
+            plt.show()
+
     def _size_of_the_tree(self, T):
         """
         Calculates the size of a tree.
@@ -557,19 +603,20 @@ class TreeSampler:
         # Succes Events (V_T - 1)
         n_success = len(nodes_in_tree) - 1
         n_fail = 0
-
-        """
-        print("Tree statistics:")
-        print(f"n_sucess: {n_success}" )
-        print(f"n_fail: {n_fail}")
-        """
         
         for u in nodes_in_tree:
             for v in G.neighbors(u):
                 if v not in nodes_in_tree:
                     n_fail += 1
+        
+        #"""
+        print("Tree statistics:",file=f)
+        print(f"n_sucess: {n_success}" ,file=f)
+        print(f"n_fail: {n_fail}",file=f)
+        #"""
 
         return n_success, n_fail
+    
     def _update_beta_gibbs(self):
         """
         Performs the Gibbs update step for the beta parameter.
