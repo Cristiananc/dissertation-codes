@@ -24,13 +24,11 @@ def fast_SIR(G: nx.Graph, initial_infecteds: list, p: float):
     Simulates a discrete-time SIR outbreak on a static network using a priority queue. 
     We assume the infection lasts one time step and transmission occurs with probability p.
 
-    Input:  
+    Args:  
         G : a networkx graphs.
         initial_infecteds: list of node indices starting the infection. 
         p: transmission probability.
     
-    Output:
-    tuple: (times, S, I, R) lists tracking the history of the outbreak.
     """
 
     #Queue structure: (time, action_type, node)
