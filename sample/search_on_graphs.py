@@ -100,8 +100,14 @@ def find_k_length_path(G, s, t, k, flag=0):
     return DFS(G, s, t, k, [s], visited, flag)
 
 def feasible_tree(G, infected_nodes, flag=0):
-    tree = []
+    tree_parent_of = {}
+    tree_children_of = {}
+
     for node in infected_nodes:
-        tree_aux = find_k_length_path(G, node, 0, G.nodes[node]['inf_time'], flag)
-        tree.append(tree_aux)
-    return tree
+        path = find_k_length_path(G, node, 0, G.nodes[node]['inf_time'], flag)
+        
+        for idx in range(len(path) - 1):
+            tree_parent_of[path[idx]] = path[idx + 1]
+            tree_children_of[path[- (idx + 1)]] = path[- (idx + 2)]
+    
+    return tree_parent_of, tree_children_of

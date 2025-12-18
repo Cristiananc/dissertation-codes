@@ -25,17 +25,16 @@ class TreeSampler:
     information available.
     """
     
-    def __init__(self, G, T_initial, infected_nodes, seed=None, flag=0):
+    def __init__(self, G, T_initial, children_of, infected_nodes, seed=None):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
+        self.children_of_curr = copy.deepcopy(children_of)
         self.infected_nodes = infected_nodes 
-        self.flag = flag
 
         self.nodes_to_sample = infected_nodes
         self.unobserved_leaves = []
         self.samplings_trees = [T_initial]
         self.log_likelihood_history = []
-        #self.beta_history = []
 
         if seed is not None:
           import random as rd
@@ -44,11 +43,9 @@ class TreeSampler:
 
         # Initialization logic
         # Adding intermediate nodes to our list of possible nodes to sample
-        for path in T_initial:
-            if not path: continue
-            for node in path:
-                if node not in self.infected_nodes and node not in self.nodes_to_sample:
-                    self.nodes_to_sample.append(node)
+        for key,val in T_initial.items():
+            if key not in self.infected_nodes and key not in self.nodes_to_sample:
+                    self.nodes_to_sample.append(key)
         
     def run(self, n_iterations):
         """
@@ -61,20 +58,13 @@ class TreeSampler:
             self.samplings_trees (list): List of states sampled.
         """
 
-        if self.T_current == [[0]]:
-            return None
+        if self.T_current == None: return None
         
         accepted_count = 0
-
-        #Initialize Beta and Priors
-        self.c_prior = 2. #Hyperparameter for Beta prior
-        self.d_prior = 5. #Hyperparameter for Beta prior
         self.beta = 0.3 #Initial value for Beta
-        #self.beta_history.append(self.beta)
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
-            if not self.nodes_to_sample:
-                break 
+            if not self.nodes_to_sample: break 
             
             #self._update_beta_gibbs()
             beta = self.beta
@@ -88,7 +78,6 @@ class TreeSampler:
             valid_proposal, q_ratio = self._propose_next_state()
 
             current_ll = self._prob_tree_log(previous_G, previous_T, beta)
-            #self.beta_history.append(self.beta)
 
             if valid_proposal:
                 alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
@@ -140,7 +129,7 @@ class TreeSampler:
         q_ratio = 0 # Default (log(1) = 0)
         valid_proposal = True
 
-        if p < 1/3:
+        if p < 1/2:
             #Addition
             node_addition = self._choose_random_node(self.nodes_to_sample)
             len_neigh = self._add_neighbor(node_addition)
@@ -159,7 +148,7 @@ class TreeSampler:
             else:
                 valid_proposal = False
 
-        elif p < 2/3:
+        elif p < 0:
             #Changing path
             node_change_path = self._choose_random_node(self.infected_nodes)
             self._change_path(node_change_path)
@@ -204,22 +193,6 @@ class TreeSampler:
         random_node = list_of_nodes[rand_idx]
 
         return random_node
-
-    def _get_path_index_for_node(self, node):
-        """
-        Gets the index of a specific element in a list.
-
-        Args:
-            node (int): The specific element to be found.
-
-        Returns:
-            i (int): -1 if element is not found, otherwise the index of node in the list.
-        """
-
-        for i, path in enumerate(self.T_current):
-            if path and path[0] == node:
-                return i
-        return -1
 
     def _is_node_used_in_tree(self, node):
         """
@@ -273,25 +246,6 @@ class TreeSampler:
             if n not in self.nodes_to_sample:
                 self.nodes_to_sample.append(n)
 
-    def _is_ancestor_to_any_node(self, node):
-        """
-        Helper to check if 'node' acts as a ancestor to any other node in T_current.
-
-        Args:
-            node (int): Node that will be check if it has any child.
-
-        Returns:
-            (bool) : True or False.
-        """
-        for path in self.T_current:
-            # Assuming path structure is [Child, Parent, ...]
-            # If the path has a parent at index 1, and that parent is 'node'
-            if len(path) > 1:
-                for i in path[1:]:
-                    if path[i] == node:
-                        return True
-        return False
-            
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
@@ -313,9 +267,6 @@ class TreeSampler:
             old_parent = None
 
         new_path = self._calculate_new_path(target_node)
-
-        #if new_path[1] == old_path[1]:
-        #    return
 
         if new_path is not None:
             self._assign_and_track_new_path(t_index, new_path)
@@ -352,7 +303,11 @@ class TreeSampler:
         self.G.nodes[new_node]['inf_time'] = self.G.nodes[node]['inf_time'] + 1
 
         #Update state
-        self.T_current.append([new_node, node])
+        self.T_current[new_node] = node
+        
+        if node in self.children_of_curr: self.children_of_curr[node].append(new_node)
+        else: self.children_of_curr[node] = new_node
+
         self.nodes_to_sample.append(new_node)
         self.unobserved_leaves.append(new_node)
 
@@ -374,15 +329,8 @@ class TreeSampler:
         Returns:
             parent_node (int or None): The parent of the deleted node in the current feasible tree.
         """
-        t_index = self._get_path_index_for_node(node)
-        if t_index == -1: return None
 
-        current_path = list(self.T_current[t_index])
-
-        #The path structure is [Leaf, Parent] based on _add_neighbor logic.
-        # Hence the parent is at index 1.
-        if len(current_path) > 1: parent_node = current_path[1]
-        else: parent_node = None
+        parent_node = self.T_current[node]
 
         #Reset infection time for deleted node
         self.G.nodes[node]['inf_time'] = math.inf
@@ -394,24 +342,14 @@ class TreeSampler:
         if node in self.unobserved_leaves:
             self.unobserved_leaves.remove(node)
 
-        del self.T_current[t_index]
-
-        #Handle the parent node
-        if parent_node is not None:
-            if not self._is_node_used_in_tree(parent_node):
-                retained_path = current_path[1:]
-
-                if len(retained_path) > 0:
-                    self.T_current.append(retained_path)
-                
+        del self.T_current[node]
+        self.children_of_curr[parent_node].remove(node)
         
-        if not self._is_ancestor_to_any_node(parent_node):
+        #Handling the case where the parent becomes a leaf
+        if len(self.children_of_curr[parent_node]) == 0:
             if parent_node not in self.unobserved_leaves:
                 if parent_node not in self.infected_nodes:
                     self.unobserved_leaves.append(parent_node)
-                    
-            if parent_node not in self.nodes_to_sample:
-                self.nodes_to_sample.append(parent_node)
 
         return parent_node
 
@@ -537,7 +475,6 @@ class TreeSampler:
         else:
             plt.figure(figsize=(10, 5))
             plt.plot(self.log_likelihood_history)
-            #plt.title("Log-Likelihood Trace")
             plt.xlabel("Iteration")
             plt.ylabel("Log-Likelihood")
             plt.show()
@@ -551,7 +488,6 @@ class TreeSampler:
         else:
             plt.figure(figsize=(10, 5))
             plt.plot(self.beta_history)
-            #plt.axhline(y= stat.mean(self.beta_history), color='g', linestyle='-')
             plt.xlabel("Iteration")
             plt.ylabel(r"$\beta$")
             plt.show()
