@@ -28,11 +28,11 @@ class TreeSampler:
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
         self.children_of_curr = copy.deepcopy(children_of)
-        self.infected_nodes = infected_nodes 
+        self.infected_nodes = list(infected_nodes) 
 
-        self.nodes_to_sample = infected_nodes
+        self.nodes_to_sample = list(infected_nodes)
         self.unobserved_leaves = []
-        self.samplings_trees = [T_initial]
+        self.samplings_trees = [copy.deepcopy(T_initial)]
         self.log_likelihood_history = []
 
         if seed is not None:
@@ -45,6 +45,8 @@ class TreeSampler:
         for key,val in T_initial.items():
             if key not in self.infected_nodes and key not in self.nodes_to_sample:
                     self.nodes_to_sample.append(key)
+        
+        self.nodes_to_sample.append(0)
         
     def run(self, n_iterations):
         """
@@ -109,6 +111,8 @@ class TreeSampler:
             print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
             print(file=f)
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
+            print(file=f)
+            print(f"Children: {self.children_of_curr}")
             #"""
 
         print()
@@ -129,7 +133,7 @@ class TreeSampler:
         q_ratio = 0 # Default (log(1) = 0)
         valid_proposal = True
 
-        if p < 1/2:
+        if p < 1/3:
             #Addition
             node_addition = self._choose_random_node(self.nodes_to_sample)
             len_neigh = self._add_neighbor(node_addition)
@@ -148,7 +152,7 @@ class TreeSampler:
             else:
                 valid_proposal = False
 
-        elif p < 0:
+        elif p < 2/3:
             #Changing path
             node_change_path = self._choose_random_node(self.infected_nodes)
             self._change_path(node_change_path)
@@ -206,7 +210,7 @@ class TreeSampler:
         """
 
         new_path = find_k_length_path(
-            self.G, source_node, 0, self.G.nodes[source_node]['inf_time'])
+            self.G, source_node, 0, self.G.nodes[source_node]['inf_time'],flag=1)
 
         return new_path
 
@@ -231,6 +235,8 @@ class TreeSampler:
         print("Changing path",file=f)        
 
         old_parent = self.T_current[target_node]
+        #old_path = self._find_path_intermediate(target_node)
+
         new_path = self._calculate_new_path(target_node)
 
         if new_path is not None:
