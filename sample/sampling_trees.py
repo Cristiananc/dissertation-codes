@@ -11,7 +11,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import copy
 from tqdm import tqdm 
-import statistics as stat
 from .search_on_graphs import find_k_length_path
 from epidemic_simulation.sir_simulation import fast_SIR
 from .helpers import check_feasibility_graphs
@@ -74,6 +73,7 @@ class TreeSampler:
             previous_G = copy.deepcopy(self.G)
             previous_nodes_list = list(self.nodes_to_sample)
             previous_leaves_list = list(self.unobserved_leaves)
+            previous_children_of = copy.deepcopy(self.children_of_curr)
 
             valid_proposal, q_ratio = self._propose_next_state()
 
@@ -176,7 +176,7 @@ class TreeSampler:
         self.T_current = copy.deepcopy(prev_T)
         self.nodes_to_sample = list(prev_nodes)
         self.unobserved_leaves = list(prev_leaves)
-
+        self.children_of_curr = copy.deepcopy(previous_children_of)
 
     def _choose_random_node(self, list_of_nodes):
         """
@@ -206,8 +206,7 @@ class TreeSampler:
         """
 
         new_path = find_k_length_path(
-            self.G, source_node, 0, self.G.nodes[source_node]['inf_time'], self.flag
-        )
+            self.G, source_node, 0, self.G.nodes[source_node]['inf_time'])
 
         return new_path
 
@@ -376,7 +375,6 @@ class TreeSampler:
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
 
         #""" 
-        print(f"Current beta: {beta}",file=f)
         print(f"Succes events: {succes_events}",file=f)
         print(f"Failed events: {failed_events}",file=f)
         print(f"prob_log: {prob_log}",file=f)
