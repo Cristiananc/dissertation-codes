@@ -194,21 +194,6 @@ class TreeSampler:
 
         return random_node
 
-    def _is_node_used_in_tree(self, node):
-        """
-        Checks if an intermediate node is part of any other path in T_current.
-        
-        node (int): The node which we want to be checked.
-        """
-        counter = 0
-        for path in self.T_current:
-            if node in path:
-                counter +=1
-        
-        if counter > 0: return True
-        else: return False
-
-
     def _calculate_new_path(self,source_node):
         """
         Finds a path of fixed length from a source node to a target node.
@@ -306,7 +291,7 @@ class TreeSampler:
         self.T_current[new_node] = node
         
         if node in self.children_of_curr: self.children_of_curr[node].append(new_node)
-        else: self.children_of_curr[node] = new_node
+        else: self.children_of_curr[node] = [new_node]
 
         self.nodes_to_sample.append(new_node)
         self.unobserved_leaves.append(new_node)
@@ -369,9 +354,8 @@ class TreeSampler:
 
         #Identify all nodes in the tree
         nodes_in_tree = set()
-        for path in T:
-            for node in path:
-                nodes_in_tree.add(node)
+        for node,value in T.items():
+            nodes_in_tree.add(node)
 
         if len(nodes_in_tree) <= 1:
             return 0
