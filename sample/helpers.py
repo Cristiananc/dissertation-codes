@@ -20,6 +20,8 @@ def nodes_proportion(G, samplings):
 
     for node in nodes_prop:
         nodes_prop[node] = nodes_prop[node]/ n
+
+    nodes_prop[0] = 1.
     return nodes_prop
 
 def nodes_proportion_list(G, samplings):

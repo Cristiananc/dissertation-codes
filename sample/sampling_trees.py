@@ -69,12 +69,12 @@ class TreeSampler:
             beta = self.beta
 
             # Capture full state for reversion
+            previous_children_of = copy.deepcopy(self.children_of_curr)
             previous_T = copy.deepcopy(self.T_current)
             previous_G = copy.deepcopy(self.G)
             previous_nodes_list = list(self.nodes_to_sample)
             previous_leaves_list = list(self.unobserved_leaves)
-            previous_children_of = copy.deepcopy(self.children_of_curr)
-
+        
             valid_proposal, q_ratio = self._propose_next_state()
 
             current_ll = self._prob_tree_log(previous_G, previous_T, beta)
@@ -91,12 +91,12 @@ class TreeSampler:
 
                 else:
                     #REJECT
-                    self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
+                    self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list, previous_children_of)
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
                     self.log_likelihood_history.append(current_ll)
 
             else:
-                self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list)
+                self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list, previous_children_of)
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
@@ -168,7 +168,7 @@ class TreeSampler:
 
         return valid_proposal, q_ratio
 
-    def _revert_state(self, prev_G, prev_T, prev_nodes, prev_leaves):
+    def _revert_state(self, prev_G, prev_T, prev_nodes, prev_leaves, previous_children_of):
         """
         Clean helper to revert all state components.
         """
@@ -210,26 +210,16 @@ class TreeSampler:
 
         return new_path
 
-    def _assign_and_track_new_path(self, index, new_path):
-        """
-        Assign a new_path for node in a given index.
+    def _find_path_intermediate(self, source_node, path):
 
-        Args:
-            index (int): Index of the node that is the source of the new path.
-            new_path (list): Path of fixed length from a source node to a target node.
-        """
-
-        self.T_current[index] = new_path
-
-        #Clean up tracking lists 
-        for n in new_path:
-            #If a leaf becomes part of a path for the new_node, it is no longer a leaf
-            if n in self.unobserved_leaves:
-                self.unobserved_leaves.remove(n)
-            
-            if n not in self.nodes_to_sample:
-                self.nodes_to_sample.append(n)
-
+        if source_node not in self.infected_nodes:
+            path.append(self.T_current[source_node])
+            self._find_path_intermediate(self.T_current[source_node], path)
+        else:
+            return path
+    
+        return path
+    
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
@@ -238,31 +228,35 @@ class TreeSampler:
         Args:
             target_node (int): The node for which the path in the current tree will be changed.
         """
-        print("Changing path",file=f)
-        t_index = self._get_path_index_for_node(target_node)
-        
-        if t_index == -1: return
-        
-        old_path = list(self.T_current[t_index])
+        print("Changing path",file=f)        
 
-        if len(old_path) > 1:
-            old_parent = old_path[1]
-        else:
-            old_parent = None
-
+        old_parent = self.T_current[target_node]
         new_path = self._calculate_new_path(target_node)
 
         if new_path is not None:
-            self._assign_and_track_new_path(t_index, new_path)
+            #Adding the new path
+            for i in range(len(new_path) - 1):
+                self.T_current[new_path[i]] = new_path[i + 1]
 
-            if old_parent is not None:
-                if not self._is_node_used_in_tree(old_parent):
+            for j in range(len(new_path) - 1, 0, -1):
+                if new_path[j] not in self.children_of_curr:
+                    self.children_of_curr[new_path[j]] = [new_path[j - 1]]
+                else:
+                    self.children_of_curr[new_path[j]].append(new_path[j-1])
+            
+            for n in new_path:
+                #If a leaf becomes part of a path for the new_node, it is no longer a leaf
+                if n in self.unobserved_leaves:
+                    self.unobserved_leaves.remove(n)
+            
+                if n not in self.nodes_to_sample:
+                    self.nodes_to_sample.append(n)
 
-                    if old_parent not in self.unobserved_leaves:
-                        self.unobserved_leaves.append(old_parent)
-                
-                    self.T_current.append(old_path[1:])
-                    
+            self.children_of_curr[old_parent].remove(target_node)
+
+            if self.children_of_curr[old_parent] == 0:
+                self.unobserved_leaves.append(old_parent)
+                                    
 
     def _add_neighbor(self, node):
         """
@@ -353,6 +347,7 @@ class TreeSampler:
 
         #Identify all nodes in the tree
         nodes_in_tree = set()
+        nodes_in_tree.add(0)
         for node,value in T.items():
             nodes_in_tree.add(node)
 
