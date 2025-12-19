@@ -24,7 +24,7 @@ class TreeSampler:
     information available.
     """
     
-    def __init__(self, G, T_initial, children_of, infected_nodes, seed=None):
+    def __init__(self, G, T_initial, children_of, infected_nodes):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
         self.children_of_curr = copy.deepcopy(children_of)
@@ -35,12 +35,6 @@ class TreeSampler:
         self.samplings_trees = [copy.deepcopy(T_initial)]
         self.log_likelihood_history = []
 
-        if seed is not None:
-          import random as rd
-          rd.seed(seed)
-          self.seed = seed
-
-        # Initialization logic
         # Adding intermediate nodes to our list of possible nodes to sample
         for key,val in T_initial.items():
             if key not in self.infected_nodes and key not in self.nodes_to_sample:
@@ -65,8 +59,6 @@ class TreeSampler:
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample: break 
             
-            #self._update_beta_gibbs()
-            beta = self.beta
 
             # Capture full state for reversion
             previous_children_of = copy.deepcopy(self.children_of_curr)
@@ -77,26 +69,36 @@ class TreeSampler:
         
             valid_proposal, q_ratio = self._propose_next_state()
 
-            current_ll = self._prob_tree_log(previous_G, previous_T, beta)
+            current_ll = self._prob_tree_log(previous_G, previous_T, self.beta)
 
             if valid_proposal:
-                alpha = self._compute_acceptance_prob(q_ratio, beta, previous_G, previous_T)
+                alpha = self._compute_acceptance_prob(q_ratio, self.beta, previous_G, previous_T)
                 p_uniform = math.log(np.random.uniform())
 
                 if p_uniform < alpha:
                     #ACCEPT
                     accepted_count += 1
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
-                    self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, beta))
+                    self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, self.beta))
 
                 else:
                     #REJECT
-                    self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list, previous_children_of)
+                    self.G = previous_G
+                    self.T_current = previous_T
+                    self.nodes_to_sample = previous_nodes_list
+                    self.unobserved_leaves = previous_leaves_list
+                    self.children_of_curr = previous_children_of
+
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
                     self.log_likelihood_history.append(current_ll)
 
             else:
-                self._revert_state(previous_G, previous_T, previous_nodes_list, previous_leaves_list, previous_children_of)
+                self.G = previous_G
+                self.T_current = previous_T
+                self.nodes_to_sample = previous_nodes_list
+                self.unobserved_leaves = previous_leaves_list
+                self.children_of_curr = previous_children_of
+                
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
@@ -170,16 +172,6 @@ class TreeSampler:
 
         return valid_proposal, q_ratio
 
-    def _revert_state(self, prev_G, prev_T, prev_nodes, prev_leaves, previous_children_of):
-        """
-        Clean helper to revert all state components.
-        """
-        self.G = copy.deepcopy(prev_G)
-        self.T_current = copy.deepcopy(prev_T)
-        self.nodes_to_sample = list(prev_nodes)
-        self.unobserved_leaves = list(prev_leaves)
-        self.children_of_curr = copy.deepcopy(previous_children_of)
-
     def _choose_random_node(self, list_of_nodes):
         """
         Chooses a random element uniformly from a list.
@@ -212,15 +204,6 @@ class TreeSampler:
 
         return new_path
 
-    def _find_path_intermediate(self, source_node, path):
-
-        if source_node not in self.infected_nodes:
-            path.append(self.T_current[source_node])
-            self._find_path_intermediate(self.T_current[source_node], path)
-        else:
-            return path
-    
-        return path
     
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
@@ -259,10 +242,7 @@ class TreeSampler:
             self.children_of_curr[old_parent].remove(target_node)
 
             if len(self.children_of_curr[old_parent]) == 0:
-                #Remove parent
-                del self.T_current[old_parent]
-                self.G.nodes[old_parent]['inf_time'] = math.inf
-                self.nodes_to_sample.remove(old_parent)
+                self.unobserved_leaves.append(old_parent)
 
     def _add_neighbor(self, node):
         """
@@ -376,13 +356,7 @@ class TreeSampler:
         log_beta = math.log(beta)
         log_beta_aux = math.log(1-beta)
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
-
-        #""" 
-        print(f"Succes events: {succes_events}",file=f)
-        print(f"Failed events: {failed_events}",file=f)
-        print(f"prob_log: {prob_log}",file=f)
-        #"""
-
+        
         return prob_log
     
     def _compute_acceptance_prob(self, q_ratio, beta, previous_G, previous_T):
