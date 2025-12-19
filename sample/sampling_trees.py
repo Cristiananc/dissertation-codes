@@ -45,9 +45,7 @@ class TreeSampler:
         for key,val in T_initial.items():
             if key not in self.infected_nodes and key not in self.nodes_to_sample:
                     self.nodes_to_sample.append(key)
-        
-        self.nodes_to_sample.append(0)
-        
+                
     def run(self, n_iterations):
         """
         This function executes the Metropolis-Hastings sampling loop.
@@ -233,10 +231,10 @@ class TreeSampler:
             target_node (int): The node for which the path in the current tree will be changed.
         """
         print("Changing path",file=f)        
+        if target_node == 0:
+            return
 
         old_parent = self.T_current[target_node]
-        #old_path = self._find_path_intermediate(target_node)
-
         new_path = self._calculate_new_path(target_node)
 
         if new_path is not None:
@@ -261,8 +259,10 @@ class TreeSampler:
             self.children_of_curr[old_parent].remove(target_node)
 
             if len(self.children_of_curr[old_parent]) == 0:
-                self.unobserved_leaves.append(old_parent)
-                                    
+                #Remove parent
+                del self.T_current[old_parent]
+                self.G.nodes[old_parent]['inf_time'] = math.inf
+                self.nodes_to_sample.remove(old_parent)
 
     def _add_neighbor(self, node):
         """
@@ -464,94 +464,6 @@ class TreeSampler:
             plt.ylabel("Log-Likelihood")
             plt.show()
 
-    def _trace_plot_beta(self):
-        """
-        Plots the trace plot for the beta variable.
-        """        
-        if len(self.beta_history) <= 1:
-            print("No valid sampling has been performed yet!")
-        else:
-            plt.figure(figsize=(10, 5))
-            plt.plot(self.beta_history)
-            plt.xlabel("Iteration")
-            plt.ylabel(r"$\beta$")
-            plt.show()
-
-    def _size_of_the_tree(self, T):
-        """
-        Calculates the size of a tree.
-
-        Args:
-            T (list): A list of lists with the paths of the tree.
-
-        Returns:
-           tree_size (int): Returns the size of the tree |V_T|
-        """
-        #Identify all nodes in the tree
-        nodes_in_tree = set()
-        for path in T:
-            nodes_in_tree.update(path)
-        
-        tree_size = len(nodes_in_tree)
-
-        return tree_size
-    
-    def _trace_plot_tree_size(self):
-        return None
-
-    # ----------------- Beta (Gibbs update) ------------- #
-    def _get_tree_statistics(self, G, T):
-        """
-        Computes the N_success and N_fail in a given tree for the Gibbs step.
-
-        Args:
-            G (networkx graph): A graph G that we are sampling from.
-            T (list): A list of lists with the paths of the tree.
-
-        Returns:
-           n_success, n_fail  (int, int): Number of sucessfull and failed 
-           transmission events for T.
-        """
-
-        nodes_in_tree = set()
-        for path in T:
-            for node in path:
-                nodes_in_tree.add(node)
-
-        if len(nodes_in_tree) <= 1:
-            return 0
-        
-        # Succes Events (V_T - 1)
-        n_success = len(nodes_in_tree) - 1
-        n_fail = 0
-        
-        for u in nodes_in_tree:
-            for v in G.neighbors(u):
-                if v not in nodes_in_tree:
-                    n_fail += 1
-        
-        #"""
-        print("Tree statistics:",file=f)
-        print(f"n_sucess: {n_success}" ,file=f)
-        print(f"n_fail: {n_fail}",file=f)
-        #"""
-
-        return n_success, n_fail
-    
-    def _update_beta_gibbs(self):
-        """
-        Performs the Gibbs update step for the beta parameter.
-        P(beta | T) ~ Beta(alpha_prior + N_success, beta_prior + N_fail)
-        """
-
-        n_success, n_fail = self._get_tree_statistics(self.G, self.T_current)
-        c_posterior = self.c_prior + n_success
-        d_posterior = self.d_prior + n_fail
-
-        new_beta = np.random.beta(c_posterior, d_posterior)
-        self.beta = max(1e-9, min(new_beta, 1 - 1e-9))
-
-    
     # ------------- Performs Naive Sampling ---------------- #
     def naive_sampling(G, sampling_number, observed_nodes, initial_infecteds):
         samplings = []
