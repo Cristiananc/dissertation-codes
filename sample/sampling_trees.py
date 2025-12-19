@@ -112,7 +112,7 @@ class TreeSampler:
             print(file=f)
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
             print(file=f)
-            print(f"Children: {self.children_of_curr}")
+            print(f"Children: {self.children_of_curr}", file=f)
             #"""
 
         print()
@@ -260,7 +260,7 @@ class TreeSampler:
 
             self.children_of_curr[old_parent].remove(target_node)
 
-            if self.children_of_curr[old_parent] == 0:
+            if len(self.children_of_curr[old_parent]) == 0:
                 self.unobserved_leaves.append(old_parent)
                                     
 
@@ -368,11 +368,13 @@ class TreeSampler:
             for v in G.neighbors(u):
                 if v not in nodes_in_tree:
                     failed_events += 1
+                else:
+                    if G.nodes[v]['inf_time'] > G.nodes[u]['inf_time'] and T[v] != u:
+                        failed_events +=1
                 
         
-        log_beta = math.log(max(1e-9, beta))
-        log_beta_aux = math.log(max(1e-9, 1 - beta)) # Use 1-beta here
-        
+        log_beta = math.log(beta)
+        log_beta_aux = math.log(1-beta)
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
 
         #""" 
