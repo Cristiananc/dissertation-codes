@@ -152,9 +152,12 @@ class TreeSampler:
                     node_delete = self._choose_random_node(self.unobserved_leaves)
                     self._delete_node(node_delete)
 
+                else:
+                    valid_proposal = False
+
         #Calculating the degree of T_prop in the state space graph
         prop_degree_approx = self._calculate_degree_curr_tree()[0]
-        q_ratio = curr_degree_approx / prop_degree_approx
+        q_ratio = math.log(curr_degree_approx / prop_degree_approx)
         print(f"q_ratio: {q_ratio}", file = f)
 
         return valid_proposal, q_ratio
