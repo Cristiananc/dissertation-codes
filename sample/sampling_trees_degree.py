@@ -33,7 +33,7 @@ class TreeSampler:
         self.nodes_to_sample = list(infected_nodes)
         self.unobserved_leaves = []
         self.samplings_trees = [copy.deepcopy(T_initial)]
-        self.log_likelihood_history = []
+        self.trees_degre = {}
 
         # Adding intermediate nodes to our list of possible nodes to sample
         for key,val in T_initial.items():
@@ -59,7 +59,6 @@ class TreeSampler:
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
             if not self.nodes_to_sample: break 
             
-
             # Capture full state for reversion
             previous_children_of = copy.deepcopy(self.children_of_curr)
             previous_T = copy.deepcopy(self.T_current)
@@ -79,7 +78,6 @@ class TreeSampler:
                     #ACCEPT
                     accepted_count += 1
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
-                    self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, self.beta))
 
                 else:
                     #REJECT
@@ -90,7 +88,6 @@ class TreeSampler:
                     self.children_of_curr = previous_children_of
 
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
-                    self.log_likelihood_history.append(current_ll)
 
             else:
                 self.G = previous_G
@@ -100,7 +97,6 @@ class TreeSampler:
                 self.children_of_curr = previous_children_of
                 
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
-                self.log_likelihood_history.append(current_ll)
             
             #"""
             print(file=f)
@@ -129,48 +125,56 @@ class TreeSampler:
             (bool, float) (tuple) -> (valid_proposal, q_ratio).
         """
         
-        p = np.random.uniform()
         q_ratio = 0 # Default (log(1) = 0)
         valid_proposal = True
 
-        if p < 1/3:
+        #Calculating the degree of T_curr in the state space graph
+        curr_degree_approx, avg_degree = self._calculate_degree_curr_tree()
+        rd_idx = rd.randrange(1, curr_degree_approx)
+
+        if rd_idx <= len(self.unobserved_leaves):
+            #Deletion 
+            node_delete = self._choose_random_node(self.unobserved_leaves)
+            self._delete_node(node_delete)
+
+        elif rd_idx > len(self.unobserved_leaves) and rd_idx <= len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*avg_degree:
+            node_change_path = self._choose_random_node(self.infected_nodes[1:])
+            self._change_path(node_change_path)           
+            
+        else:
             #Addition
             node_addition = self._choose_random_node(self.nodes_to_sample)
             len_neigh = self._add_neighbor(node_addition)
 
-            if len_neigh is not None and len_neigh > 0:
-                # Foward: 1/N_sample_old * 1/len_neigh | Reverse: 1/Leaves_new
-                n_sample = len(self.nodes_to_sample) - 1 #The list already includes the new node added
-                n_leaves_new = len(self.unobserved_leaves)
+            if len_neigh is None or len_neigh == 0:
+                if len(self.unobserved_leaves) > 0:
+                    #Deletion 
+                    node_delete = self._choose_random_node(self.unobserved_leaves)
+                    self._delete_node(node_delete)
 
-                if n_leaves_new > 0:
-                    q_ratio = math.log((n_sample *len_neigh)) - math.log(n_leaves_new)
-
-                else:
-                    valid_proposal = False
-            
-            else:
-                valid_proposal = False
-
-        elif p < 2/3:
-            #Changing path
-            node_change_path = self._choose_random_node(self.infected_nodes)
-            self._change_path(node_change_path)
-
-            #We assume the number of available paths doesn't change much between states
-            q_ratio = 0 #Assumed symmetric
-
-        else:
-            #Deletion 
-            if len(self.unobserved_leaves) > 0:
-                node_delete = self._choose_random_node(self.unobserved_leaves)
-                parent_node = self._delete_node(node_delete)
-                valid_proposal, q_ratio = self._compute_q_ratio_deletion(parent_node)
-            
-            else:
-                valid_proposal = False
+        #Calculating the degree of T_prop in the state space graph
+        prop_degree_approx = self._calculate_degree_curr_tree()[0]
+        q_ratio = curr_degree_approx / prop_degree_approx
+        print(f"q_ratio: {q_ratio}", file = f)
 
         return valid_proposal, q_ratio
+
+    def _calculate_degree_curr_tree(self):
+        sum_of_edges = 0
+        for i in self.G.degree():
+            sum_of_edges += i[1]
+        avg_degree = sum_of_edges // 2*len(self.G.nodes)
+        
+        avg_degree_tree = 0
+        for i in self.children_of_curr.values():
+            avg_degree_tree += len(i)
+
+        avg_degree_tree = avg_degree_tree // (len(self.T_current) + 1) #Recall that 0 doesn't have a parent
+
+        #Finding the degree of the current graph
+        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*avg_degree  + len(self.nodes_to_sample)*(avg_degree - avg_degree_tree)
+
+        return curr_degree_approx, avg_degree
 
     def _choose_random_node(self, list_of_nodes):
         """
@@ -214,8 +218,6 @@ class TreeSampler:
             target_node (int): The node for which the path in the current tree will be changed.
         """
         print("Changing path",file=f)        
-        if target_node == 0:
-            return
 
         old_parent = self.T_current[target_node]
         new_path = self._calculate_new_path(target_node)
@@ -382,62 +384,6 @@ class TreeSampler:
         alpha = min(0, alpha_aux) 
         return alpha
     
-    def _compute_q_ratio_deletion(self, parent_node):
-        """
-        Calculates the Hastings ratio for deletion
-
-        Args:
-            parent_node (int): The parent node of the deleted node.
-
-        Returns:
-            (bool, float) -> (valid_proposal, q_ratio)
-        """
-
-        valid_proposal = False
-        q_ratio = 0
-
-        if parent_node is not None:
-
-            neigh_available = 0
-
-            # Recalculate available neighbors for the reverse move (Addition)
-            for neighbor in self.G.neighbors(parent_node):
-
-                if self.G.nodes[neighbor]['inf_time'] == math.inf:
-                    neigh_available += 1
-
-            n_sample_new = len(self.nodes_to_sample)
-            
-            # Check for the Math Domain Error condition (Denominator must be non-zero)
-            if n_sample_new == 0 or neigh_available == 0:
-                valid_proposal = False
-
-            else:
-                # q(T|T') / q(T'|T) = N_leaves_old / (N_sample_new * neigh_available)
-                n_leaves_old = len(self.unobserved_leaves) + 1
-                q_ratio = math.log(n_leaves_old) - math.log(n_sample_new) - math.log(neigh_available)
-                valid_proposal = True
-
-        else:
-            # Deletion failed
-            valid_proposal = False     
-
-        return valid_proposal, q_ratio
-
-    # ---------------- Visualise results ------------------------- #
-    def _trace_plot_log_likelihood(self):
-        """
-        Plots the trace plot for the log likelihood of the samplings.
-        """
-        if len(self.log_likelihood_history) <= 1:
-            print("No valid sampling has been performed yet!")
-        else:
-            plt.figure(figsize=(10, 5))
-            plt.plot(self.log_likelihood_history)
-            plt.xlabel("Iteration")
-            plt.ylabel("Log-Likelihood")
-            plt.show()
-
     # ------------- Performs Naive Sampling ---------------- #
     def naive_sampling(G, sampling_number, observed_nodes, initial_infecteds):
         samplings = []

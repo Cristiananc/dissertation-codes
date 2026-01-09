@@ -8,18 +8,20 @@ def nodes_proportion(G, samplings):
     """
 
     if samplings == None:
-        return 
-    
+        return
+
     nodes_prop = {x: 0 for x in list(G.nodes)}
     for node in G.nodes:
-        for lis in samplings:
-            is_present = any(node in sublist for sublist in lis)
+        for tree in samplings:
+            is_present = node in tree
             nodes_prop[node] += is_present
 
     n = len(samplings)
-    
+
     for node in nodes_prop:
         nodes_prop[node] = nodes_prop[node]/ n
+
+    nodes_prop[0] = 1.
     return nodes_prop
 
 def nodes_proportion_list(G, samplings):
