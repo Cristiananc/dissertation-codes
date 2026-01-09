@@ -78,7 +78,6 @@ class TreeSampler:
                     #ACCEPT
                     accepted_count += 1
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
-                    self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, self.beta))
 
                 else:
                     #REJECT
@@ -89,7 +88,6 @@ class TreeSampler:
                     self.children_of_curr = previous_children_of
 
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
-                    self.log_likelihood_history.append(current_ll)
 
             else:
                 self.G = previous_G
@@ -99,7 +97,6 @@ class TreeSampler:
                 self.children_of_curr = previous_children_of
                 
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
-                self.log_likelihood_history.append(current_ll)
             
             #"""
             print(file=f)
@@ -132,7 +129,7 @@ class TreeSampler:
         valid_proposal = True
 
         #Calculating the degree of T_curr in the state space graph
-        curr_degree_approx = _calculate_degree_curr_tree()
+        curr_degree_approx, avg_degree = self._calculate_degree_curr_tree()
         rd_idx = rd.randrange(1, curr_degree_approx)
 
         if rd_idx <= len(self.unobserved_leaves):
@@ -140,8 +137,8 @@ class TreeSampler:
             node_delete = self._choose_random_node(self.unobserved_leaves)
             self._delete_node(node_delete)
 
-        elif rd_idx > len(self.unobserved_leaves) and rd_idx <= len(self.unobserved_leaves) + len(self.infected_nodes)*avg_degree:
-            node_change_path = self._choose_random_node(self.infected_nodes)
+        elif rd_idx > len(self.unobserved_leaves) and rd_idx <= len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*avg_degree:
+            node_change_path = self._choose_random_node(self.infected_nodes[1:])
             self._change_path(node_change_path)           
             
         else:
@@ -150,10 +147,15 @@ class TreeSampler:
             len_neigh = self._add_neighbor(node_addition)
 
             if len_neigh is None or len_neigh == 0:
-                valid_proposal = False
+                if len(self.unobserved_leaves) > 0:
+                    #Deletion 
+                    node_delete = self._choose_random_node(self.unobserved_leaves)
+                    self._delete_node(node_delete)
 
-        
         #Calculating the degree of T_prop in the state space graph
+        prop_degree_approx = self._calculate_degree_curr_tree()[0]
+        q_ratio = curr_degree_approx / prop_degree_approx
+        print(f"q_ratio: {q_ratio}", file = f)
 
         return valid_proposal, q_ratio
 
@@ -164,15 +166,15 @@ class TreeSampler:
         avg_degree = sum_of_edges // 2*len(self.G.nodes)
         
         avg_degree_tree = 0
-        for i in self.children_of_curr:
+        for i in self.children_of_curr.values():
             avg_degree_tree += len(i)
 
         avg_degree_tree = avg_degree_tree // (len(self.T_current) + 1) #Recall that 0 doesn't have a parent
 
         #Finding the degree of the current graph
-        curr_degree_approx = len(self.unobserved_leaves) + len(self.infected_nodes)*avg_degree  + len(self.T_current)*(avg_degree - avg_degree_tree) 
+        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*avg_degree  + len(self.nodes_to_sample)*(avg_degree - avg_degree_tree)
 
-        return curr_degree_approx
+        return curr_degree_approx, avg_degree
 
     def _choose_random_node(self, list_of_nodes):
         """
@@ -216,8 +218,6 @@ class TreeSampler:
             target_node (int): The node for which the path in the current tree will be changed.
         """
         print("Changing path",file=f)        
-        if target_node == 0:
-            return
 
         old_parent = self.T_current[target_node]
         new_path = self._calculate_new_path(target_node)
