@@ -130,7 +130,10 @@ class TreeSampler:
 
         #Calculating the degree of T_curr in the state space graph
         curr_degree_approx, avg_degree = self._calculate_degree_curr_tree()
-        rd_idx = rd.randrange(1, curr_degree_approx)
+        rd_idx = rd.randrange(1, curr_degree_approx + 1)
+
+        print(f"curr_degree: {curr_degree_approx}", file = f)
+        print(f"rd_idx: {rd_idx}", file = f)
 
         if rd_idx <= len(self.unobserved_leaves):
             #Deletion 
@@ -147,14 +150,11 @@ class TreeSampler:
             len_neigh = self._add_neighbor(node_addition)
 
             if len_neigh is None or len_neigh == 0:
-                if len(self.unobserved_leaves) > 0:
-                    #Deletion 
-                    node_delete = self._choose_random_node(self.unobserved_leaves)
-                    self._delete_node(node_delete)
+                valid_proposal = False
 
         #Calculating the degree of T_prop in the state space graph
         prop_degree_approx = self._calculate_degree_curr_tree()[0]
-        q_ratio = curr_degree_approx / prop_degree_approx
+        q_ratio = math.log(curr_degree_approx / prop_degree_approx)
         print(f"q_ratio: {q_ratio}", file = f)
 
         return valid_proposal, q_ratio
@@ -163,7 +163,7 @@ class TreeSampler:
         sum_of_edges = 0
         for i in self.G.degree():
             sum_of_edges += i[1]
-        avg_degree = sum_of_edges // 2*len(self.G.nodes)
+        avg_degree = sum_of_edges // len(self.G.nodes)
         
         avg_degree_tree = 0
         for i in self.children_of_curr.values():
@@ -172,7 +172,7 @@ class TreeSampler:
         avg_degree_tree = avg_degree_tree // (len(self.T_current) + 1) #Recall that 0 doesn't have a parent
 
         #Finding the degree of the current graph
-        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*avg_degree  + len(self.nodes_to_sample)*(avg_degree - avg_degree_tree)
+        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*avg_degree  + len(self.nodes_to_sample)*avg_degree
 
         return curr_degree_approx, avg_degree
 
@@ -383,6 +383,20 @@ class TreeSampler:
 
         alpha = min(0, alpha_aux) 
         return alpha
+    
+    # ---------------- Visualise results ------------------------- #
+    def _trace_plot_log_likelihood(self):
+        """
+        Plots the trace plot for the log likelihood of the samplings.
+        """
+        if len(self.log_likelihood_history) <= 1:
+            print("No valid sampling has been performed yet!")
+        else:
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.log_likelihood_history)
+            plt.xlabel("Iteration")
+            plt.ylabel("Log-Likelihood")
+            plt.show()
     
     # ------------- Performs Naive Sampling ---------------- #
     def naive_sampling(G, sampling_number, observed_nodes, initial_infecteds):
