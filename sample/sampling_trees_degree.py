@@ -43,7 +43,7 @@ class TreeSampler:
         sum_of_edges = 0
         for i in self.G.degree():
             sum_of_edges += i[1]
-        self.avg_degree = round(sum_of_edges / len(self.G.nodes))
+        self.avg_degree = math.ceil((sum_of_edges / len(self.G.nodes)) - .5)
                 
     def run(self, n_iterations):
         """
@@ -165,13 +165,7 @@ class TreeSampler:
         return valid_proposal, q_ratio
 
     def _calculate_degree_curr_tree(self):
-        avg_degree_tree = 0
-        for i in self.children_of_curr.values():
-            avg_degree_tree += len(i)
-
-        avg_degree_tree = round(avg_degree_tree / (len(self.T_current) + 1)) #Recall that 0 doesn't have a parent
-        
-        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*self.avg_degree  + len(self.nodes_to_sample)*(self.avg_degree - avg_degree_tree)
+        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*self.avg_degree  + len(self.nodes_to_sample)*self.avg_degree
 
         return curr_degree_approx
 
