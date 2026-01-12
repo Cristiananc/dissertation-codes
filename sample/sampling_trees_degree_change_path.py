@@ -165,6 +165,9 @@ class TreeSampler:
         return valid_proposal, q_ratio
 
     def _calculate_degree_curr_tree(self):
+        """
+        Calculates the approximate degree of a given tree in the state space of trees.
+        """
         avg_degree_tree = 0
         for node in self.nodes_to_sample:
             if node in self.children_of_curr:
@@ -274,8 +277,9 @@ class TreeSampler:
             if exit: break
 
         #Now I remove the nodes that can be removed
-        
 
+
+        #Finding a new path for the target node
         new_path = self._calculate_new_path(target_node)
 
         if new_path is not None:
