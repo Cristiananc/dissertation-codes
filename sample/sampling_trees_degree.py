@@ -174,7 +174,10 @@ class TreeSampler:
         
         avg_degree_tree = math.ceil((avg_degree_tree / len(self.nodes_to_sample)) - .5)
 
-        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*self.avg_degree  + len(self.nodes_to_sample)*(self.avg_degree - avg_degree_tree)
+        if self.avg_degree - avg_degree_tree == 0:
+            curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*self.avg_degree  + len(self.nodes_to_sample)*(self.avg_degree)
+        else:
+            curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*self.avg_degree  + len(self.nodes_to_sample)*(self.avg_degree - avg_degree_tree)
 
         return curr_degree_approx
 
