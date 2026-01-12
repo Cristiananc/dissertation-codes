@@ -212,6 +212,22 @@ class TreeSampler:
             self.G, source_node, 0, self.G.nodes[source_node]['inf_time'],flag=1)
 
         return new_path
+    
+    def _get_descendants(self, node, descendants):
+        """
+        Finds the descendants of a given node.
+        
+        Args:
+            node (int): Source node for the search of descendants.
+            descendants (list): A list that updates recursively with the descedants of the given node.
+        """
+
+        if node in self.children_of_curr:
+            for child in self.children_of_curr[node]:
+                descendants.append(child)
+
+            for nodes in self.children_of_curr[node]:
+                self._get_descendants(self, nodes, descendants, self.children_of_curr)
 
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
@@ -224,6 +240,42 @@ class TreeSampler:
         print("Changing path",file=f)        
 
         old_parent = self.T_current[target_node]
+
+        #Access previous path from the tree
+        old_path = []
+        flag = True
+        curr_node = old_parent
+        while flag:
+            if curr_node not in self.infected_nodes:
+                old_path.append(curr_node)
+                curr_node = self.T_current[curr_node]
+            else:
+                flag = False
+
+        #Remove the target node from the list of children of the old parent
+        self.children_of_curr[old_parent].remove(target_node)
+
+        #Finding out which nodes in the old path we can remove
+        #If a node has an observed node as a descendant, we exit from all loops
+        old_path_to_remove = []
+        exit = False
+        descendants_to_remove = {}
+        for node in old_path:
+            descendants = []
+            self._get_descendants(node, descendants)
+
+            for child in descendants:
+                if child in self.infected_nodes:
+                    exit = True
+                    break
+            else:
+                old_path_to_remove.append(node)
+                descendants_to_remove[node] = descendants
+            if exit: break
+
+        #Now I remove the nodes that can be removed
+        
+
         new_path = self._calculate_new_path(target_node)
 
         if new_path is not None:
@@ -244,11 +296,6 @@ class TreeSampler:
             
                 if n not in self.nodes_to_sample:
                     self.nodes_to_sample.append(n)
-
-            self.children_of_curr[old_parent].remove(target_node)
-
-            if len(self.children_of_curr[old_parent]) == 0:
-                self.unobserved_leaves.append(old_parent)
 
     def _add_neighbor(self, node):
         """
