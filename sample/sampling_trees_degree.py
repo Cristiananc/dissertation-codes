@@ -165,7 +165,16 @@ class TreeSampler:
         return valid_proposal, q_ratio
 
     def _calculate_degree_curr_tree(self):
-        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*self.avg_degree  + len(self.nodes_to_sample)*self.avg_degree
+        avg_degree_tree = 0
+        for node in self.nodes_to_sample:
+            if node in self.children_of_curr:
+                avg_degree_tree += len(self.children_of_curr[node])
+            else: #the node is a leaf
+                avg_degree_tree += 1
+        
+        avg_degree_tree = math.ceil((avg_degree_tree / len(self.nodes_to_sample)) - .5)
+
+        curr_degree_approx = len(self.unobserved_leaves) + (len(self.infected_nodes) - 1)*self.avg_degree  + len(self.nodes_to_sample)*(self.avg_degree - avg_degree_tree)
 
         return curr_degree_approx
 
