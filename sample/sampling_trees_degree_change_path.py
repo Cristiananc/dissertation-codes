@@ -232,6 +232,53 @@ class TreeSampler:
             for nodes in self.children_of_curr[node]:
                 self._get_descendants(self, nodes, descendants, self.children_of_curr)
 
+    def _get_path_from_tree(self, parent):
+        """
+        Returns the path from a source node to the first observed node found in the tree.
+
+        Args:
+            parent (int): The parent of the source node.
+
+        Returns:
+            path (list): The path found in the tree.
+        """
+                
+        path = []
+        curr_node = parent
+        while True:
+            if curr_node not in self.infected_nodes:
+                path.append(curr_node)
+                curr_node = self.T_current[curr_node]
+            else:
+                return path
+            
+    def _get_nodes_to_remove(self, path):
+        """
+        Returns the nodes to be removed in the change of path operation.
+
+        Args:
+            path (list): The previous path of a given node in the tree.
+
+        Returns:
+            path_to_remove (list): The nodes in the path that can be removed.
+            descendants_to_remove (dict): A dict with descendants that should be removed for each 
+            node in the path_to_remove.
+        """
+        old_path_to_remove = []
+        descendants_to_remove = {}
+
+        for node in path:
+            descendants = []
+            self._get_descendants(node, descendants)
+
+            #If a node has an observed node as a descendant, we return
+            for child in descendants:
+                if child in self.infected_nodes:
+                    return old_path_to_remove, descendants_to_remove
+            else:
+                old_path_to_remove.append(node)
+                descendants_to_remove[node] = descendants
+
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
@@ -245,39 +292,22 @@ class TreeSampler:
         old_parent = self.T_current[target_node]
 
         #Access previous path from the tree
-        old_path = []
-        flag = True
-        curr_node = old_parent
-        while flag:
-            if curr_node not in self.infected_nodes:
-                old_path.append(curr_node)
-                curr_node = self.T_current[curr_node]
-            else:
-                flag = False
+        old_path = self._get_path_from_tree(old_parent)
 
         #Remove the target node from the list of children of the old parent
         self.children_of_curr[old_parent].remove(target_node)
 
         #Finding out which nodes in the old path we can remove
-        #If a node has an observed node as a descendant, we exit from all loops
-        old_path_to_remove = []
-        exit = False
-        descendants_to_remove = {}
-        for node in old_path:
-            descendants = []
-            self._get_descendants(node, descendants)
-
-            for child in descendants:
-                if child in self.infected_nodes:
-                    exit = True
-                    break
-            else:
-                old_path_to_remove.append(node)
-                descendants_to_remove[node] = descendants
-            if exit: break
+        old_path_to_remove, descendants_to_remove = self._get_nodes_to_remove(self, old_path)
 
         #Now I remove the nodes that can be removed
+        for each in old_path_to_remove:
+            if each in self.nodes_to_sample:
+                self.delete_node(each)
 
+        #Removing their descendants as well
+        for child_to_remove in descendants_to_remove.values():
+            self._delete_node(child_to_remove)
 
         #Finding a new path for the target node
         new_path = self._calculate_new_path(target_node)
