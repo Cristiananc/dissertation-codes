@@ -230,7 +230,7 @@ class TreeSampler:
                 descendants.append(child)
 
             for nodes in self.children_of_curr[node]:
-                self._get_descendants(self, nodes, descendants, self.children_of_curr)
+                self._get_descendants(nodes, descendants)
 
     def _get_path_from_tree(self, parent):
         """
@@ -279,6 +279,38 @@ class TreeSampler:
                 old_path_to_remove.append(node)
                 descendants_to_remove[node] = descendants
 
+        return old_path_to_remove, descendants_to_remove
+
+    def _remove_sequence_of_nodes(self, node_list):
+        """
+        Applies the delete operation to a sequence of nodes.
+
+        Args:
+            node_list (list): A list of nodes that will be removed from the tree.
+
+        """        
+        for node in node_list:
+            if node in self.nodes_to_sample:
+                self._delete_node(node)
+
+    def _add_new_path(self, new_path):
+        """
+        Adds the new path found in the tree and the new children to the self.children_of_curr dict.
+
+        Args:
+            new_path (list): A list of nodes that represents the new path in the tree for a source node.
+
+        """    
+        
+        for i in range(len(new_path) - 1):
+            self.T_current[new_path[i]] = new_path[i + 1]
+
+        for j in range(len(new_path) - 1, 0, -1):
+            if new_path[j] not in self.children_of_curr:
+                self.children_of_curr[new_path[j]] = [new_path[j - 1]]
+            else:
+                self.children_of_curr[new_path[j]].append(new_path[j-1])
+
     # ---------- Operations function --------------- #
     def _change_path(self, target_node):
         """
@@ -298,30 +330,17 @@ class TreeSampler:
         self.children_of_curr[old_parent].remove(target_node)
 
         #Finding out which nodes in the old path we can remove
-        old_path_to_remove, descendants_to_remove = self._get_nodes_to_remove(self, old_path)
+        old_path_to_remove, descendants_to_remove = self._get_nodes_to_remove(old_path)
 
-        #Now I remove the nodes that can be removed
-        for each in old_path_to_remove:
-            if each in self.nodes_to_sample:
-                self.delete_node(each)
-
-        #Removing their descendants as well
-        for child_to_remove in descendants_to_remove.values():
-            self._delete_node(child_to_remove)
+        #Now I remove the nodes that can be removed and their descendants as well
+        self._remove_sequence_of_nodes(old_path_to_remove)
+        self._remove_sequence_of_nodes(descendants_to_remove.values())
 
         #Finding a new path for the target node
         new_path = self._calculate_new_path(target_node)
 
         if new_path is not None:
-            #Adding the new path
-            for i in range(len(new_path) - 1):
-                self.T_current[new_path[i]] = new_path[i + 1]
-
-            for j in range(len(new_path) - 1, 0, -1):
-                if new_path[j] not in self.children_of_curr:
-                    self.children_of_curr[new_path[j]] = [new_path[j - 1]]
-                else:
-                    self.children_of_curr[new_path[j]].append(new_path[j-1])
+            self._add_new_path(new_path)
             
             for n in new_path:
                 #If a leaf becomes part of a path for the new_node, it is no longer a leaf
