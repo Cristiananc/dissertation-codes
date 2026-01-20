@@ -33,7 +33,7 @@ class TreeSampler:
         self.nodes_to_sample = list(infected_nodes)
         self.unobserved_leaves = []
         self.samplings_trees = [copy.deepcopy(T_initial)]
-        self.trees_degre = {}
+        self.log_likelihood_history = []
 
         # Adding intermediate nodes to our list of possible nodes to sample
         for key,val in T_initial.items():
@@ -83,6 +83,7 @@ class TreeSampler:
                     #ACCEPT
                     accepted_count += 1
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
+                    self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, self.beta))
 
                 else:
                     #REJECT
@@ -93,6 +94,7 @@ class TreeSampler:
                     self.children_of_curr = previous_children_of
 
                     self.samplings_trees.append(copy.deepcopy(self.T_current))
+                    self.log_likelihood_history.append(current_ll)
 
             else:
                 self.G = previous_G
@@ -102,6 +104,7 @@ class TreeSampler:
                 self.children_of_curr = previous_children_of
                 
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
+                self.log_likelihood_history.append(current_ll)
             
             #"""
             print(file=f)
