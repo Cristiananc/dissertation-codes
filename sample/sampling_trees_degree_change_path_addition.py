@@ -39,7 +39,7 @@ class TreeSampler:
             sum_of_edges += i[1]
         self.avg_degree = math.ceil((sum_of_edges / len(self.G.nodes)) - .5)
 
-        self.boundary_T = self._get_boundary_of_tree(self, self.T_current)
+        self.boundary_T = self._get_boundary_of_tree(self.T_current)
                 
     def run(self, n_iterations):
         """
@@ -321,7 +321,7 @@ class TreeSampler:
 
         #Update the boundary of tree T
         # This is a subproblem, for now we recalculate the boundary for the new tree
-        self.boundary_T = self._get_boundary_of_tree(self, self.T_current)
+        self.boundary_T = self._get_boundary_of_tree(self.T_current)
 
     def _add_neighbor(self):
         """
@@ -398,6 +398,8 @@ class TreeSampler:
             for v in list_neigh:
                 if self.G.nodes[v]['inf_time'] == math.inf:
                     boundary_T.append((node, v))
+        
+        return boundary_T
 
     # ---------- Compute probabilities -------------------#
     def _prob_tree_log(self, G, T, beta):
