@@ -101,6 +101,8 @@ class TreeSampler:
             print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
             print(file=f)
             print(f"Children: {self.children_of_curr}", file=f)
+            print(file=f)
+            print(f"Boundary of the tree: {self.boundary_T}", file=f)
             #"""
 
         print()
@@ -348,12 +350,13 @@ class TreeSampler:
             self.unobserved_leaves.remove(parent)
 
         #Update of the boundary of T
-        self.boundary_T.remove(new_edge)
+        #Remove all edges from boundary_T that point to the new node
+        self.boundary_T = [edge for edge in self.boundary_T if edge[1] != new_node]
 
         #Adding the neighbors of the new node not in T
         list_neigh = self.G.neighbors(new_node)
         for v in list_neigh:
-            if self.G[v]['inf_time'] == math.inf:
+            if self.G.nodes[v]['inf_time'] == math.inf:
                 self.boundary_T.append((new_node, v))
 
     def _delete_node(self, node):
