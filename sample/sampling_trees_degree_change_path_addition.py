@@ -39,7 +39,7 @@ class TreeSampler:
             sum_of_edges += i[1]
         self.avg_degree = math.ceil((sum_of_edges / len(self.G.nodes)) - .5)
 
-        self.boundary_T = self._get_boundary_of_tree(self.T_current)
+        self.boundary_T = self._get_boundary_of_tree()
                 
     def run(self, n_iterations):
         """
@@ -322,8 +322,8 @@ class TreeSampler:
                     self.unobserved_leaves.remove(n)
 
         #Update the boundary of tree T
-        # This is a subproblem, for now we recalculate the boundary for the new tree
-        self.boundary_T = self._get_boundary_of_tree(self.T_current)
+        # This is a subproblem, for now we always recalculate the boundary for the new tree
+        self.boundary_T = self._get_boundary_of_tree()
 
     def _add_neighbor(self):
         """
@@ -390,25 +390,33 @@ class TreeSampler:
 
         
         #Updating the boundary of T list
-        self.boundary_T.append((parent_node, node))
-        
+        #Remove all edges (node, v) from boundary_T
+        self.boundary_T = [edge for edge in self.boundary_T if edge[0] != node]
+
+        for v in self.G.neighbors(node):
+            if self.G.nodes[v]['inf_time'] != math.inf:
+                self.boundary_T.append((v, node))
+
         return parent_node
 
-    def _get_boundary_of_tree(self, T):
+    def _get_boundary_of_tree(self):
         """
-        This function returns the boundary edges of T, that is, the edges
-        that have one node in T and another in G (but not in T).
+        Returns the exact set of edges (u,v) where u is in the tree and v
+        is not infected (inf_time = inf)
         """
 
-        boundary_T = []
-        
-        for node in T:
-            list_neigh = self.G.neighbors(node)
-            for v in list_neigh:
+        boundary = []
+
+        #Every node currently in the transmission tree
+        nodes_in_T = set(self.T_current.keys())
+        nodes_in_T.add(0)
+
+        for u in nodes_in_T:
+            for v in self.G.neighbors(u):
                 if self.G.nodes[v]['inf_time'] == math.inf:
-                    boundary_T.append((node, v))
+                    boundary.append((u, v))
         
-        return boundary_T
+        return boundary
 
     # ---------- Compute probabilities -------------------#
     def _prob_tree_log(self, G, T, beta):
