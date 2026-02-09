@@ -350,6 +350,12 @@ class TreeSampler:
         #Update of the boundary of T
         self.boundary_T.remove(new_edge)
 
+        #Adding the neighbors of the new node not in T
+        list_neigh = self.G.neighbors(new_node)
+        for v in list_neigh:
+            if self.G[v]['inf_time'] == math.inf:
+                self.boundary_T.append((new_node, v))
+
     def _delete_node(self, node):
         """
         Performs a deletion of a node operation.
