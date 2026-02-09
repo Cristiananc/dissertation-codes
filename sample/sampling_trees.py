@@ -2,6 +2,9 @@
 Disclaimer: Code refactored with AI assistance, more specifically on code modularization and 
 verification of edge cases. All final implementation logic, and resulting analysis remain the 
 original work and responsability of the author.
+
+This is the initial version in which the change of path does not delete the previous path
+and we do not use the degree of the trees in the graph of the state space.
 """
 
 import math
