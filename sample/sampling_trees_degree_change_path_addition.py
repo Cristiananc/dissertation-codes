@@ -30,15 +30,9 @@ class TreeSampler:
         self.children_of_curr = copy.deepcopy(children_of)
         self.infected_nodes = list(infected_nodes) 
 
-        self.nodes_to_sample = list(infected_nodes)
         self.unobserved_leaves = []
         self.samplings_trees = [copy.deepcopy(T_initial)]
         self.log_likelihood_history = []
-
-        # Adding intermediate nodes to our list of possible nodes to sample
-        for key,val in T_initial.items():
-            if key not in self.infected_nodes and key not in self.nodes_to_sample:
-                    self.nodes_to_sample.append(key)
 
         sum_of_edges = 0
         for i in self.G.degree():
@@ -64,13 +58,12 @@ class TreeSampler:
         self.beta = 0.3 #Initial value for Beta
         
         for _ in tqdm(range(n_iterations), desc="Sampling trees"):
-            if not self.nodes_to_sample: break 
+            if not self.T_current: break 
             
             # Capture full state for reversion
             previous_children_of = copy.deepcopy(self.children_of_curr)
             previous_T = copy.deepcopy(self.T_current)
             previous_G = copy.deepcopy(self.G)
-            previous_nodes_list = list(self.nodes_to_sample)
             previous_leaves_list = list(self.unobserved_leaves)
             previous_boundary_T = list(self.boundary_T)
         
@@ -92,7 +85,6 @@ class TreeSampler:
                 #REJECT
                 self.G = previous_G
                 self.T_current = previous_T
-                self.nodes_to_sample = previous_nodes_list
                 self.unobserved_leaves = previous_leaves_list
                 self.children_of_curr = previous_children_of
                 self.boundary_T = previous_boundary_T
@@ -103,8 +95,6 @@ class TreeSampler:
             #"""
             print(file=f)
             print(f"Current Tree: {self.T_current}", file=f)
-            print(file=f)
-            print(f"Nodes to sample: {self.nodes_to_sample}",file=f)
             print(file=f)
             print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
             print(file=f)
@@ -143,8 +133,7 @@ class TreeSampler:
 
         elif rd_idx > len(self.unobserved_leaves) and rd_idx <= (len(self.unobserved_leaves) + len(self.boundary_T)):
             #Addition
-            node_addition = self._choose_random_node(self.nodes_to_sample)
-            self._add_neighbor(node_addition)
+            self._add_neighbor()
             
         else:
             #Change of path
@@ -273,7 +262,7 @@ class TreeSampler:
 
         """        
         for node in node_list:
-            if node in self.nodes_to_sample:
+            if node in self.T_current:
                 self._delete_node(node)
 
     def _add_new_path(self, new_path):
@@ -329,9 +318,6 @@ class TreeSampler:
                 #If a leaf becomes part of a path for the new_node, it is no longer a leaf
                 if n in self.unobserved_leaves:
                     self.unobserved_leaves.remove(n)
-            
-                if n not in self.nodes_to_sample:
-                    self.nodes_to_sample.append(n)
 
         #Update the boundary of tree T
         # This is a subproblem, for now we recalculate the boundary for the new tree
@@ -355,7 +341,6 @@ class TreeSampler:
         if parent in self.children_of_curr: self.children_of_curr[parent].append(new_node)
         else: self.children_of_curr[parent] = [new_node]
 
-        self.nodes_to_sample.append(new_node)
         self.unobserved_leaves.append(new_node)
 
         #If the source was a leaf, it is not anymore
@@ -381,9 +366,6 @@ class TreeSampler:
         #Reset infection time for deleted node
         self.G.nodes[node]['inf_time'] = math.inf
         print({f"Node deleted: {node}"},file=f)
-
-        if node in self.nodes_to_sample:
-            self.nodes_to_sample.remove(node)
         
         if node in self.unobserved_leaves:
             self.unobserved_leaves.remove(node)
