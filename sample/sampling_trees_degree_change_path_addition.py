@@ -308,7 +308,7 @@ class TreeSampler:
 
         #Now I remove the nodes that can be removed and their descendants as well
         self._remove_sequence_of_nodes(old_path_to_remove)
-        self._remove_sequence_of_nodes(descendants_to_remove.values())
+        self._remove_sequence_of_nodes(list(descendants_to_remove.values()))
 
         #Finding a new path for the target node
         new_path = self._calculate_new_path(target_node)
