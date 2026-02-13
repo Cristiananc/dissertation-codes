@@ -71,7 +71,6 @@ class TreeSampler:
 
             current_ll = self._prob_tree_log(previous_G, previous_T, self.beta)
 
-
             alpha = self._compute_acceptance_prob(q_ratio, self.beta, previous_G, previous_T)
             p_uniform = math.log(np.random.uniform())
 
@@ -154,7 +153,7 @@ class TreeSampler:
         Calculates the approximate degree of a given tree in the state space of trees.
         """
         
-        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T) + (len(self.infected_nodes) - 1)*self.avg_degree
+        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T) + (len(self.infected_nodes) - 1)#*self.avg_degree
  
         return curr_degree_approx
 
@@ -252,20 +251,40 @@ class TreeSampler:
             else:
                 old_path_to_remove.append(node)
                 descendants_to_remove[node] = descendants
-
+        
         return old_path_to_remove, descendants_to_remove
 
-    def _remove_sequence_of_nodes(self, node_list):
+    def _remove_sequence_of_nodes(self, nodes_to_prune):
         """
-        Applies the delete operation to a sequence of nodes.
+        Cleans up nodes being removed during a path change.
 
         Args:
-            node_list (list): A list of nodes that will be removed from the tree.
+            nodes_to_prune (list): A list of nodes that will be removed from the tree.
 
-        """        
-        for node in node_list:
+        """
+        for node in nodes_to_prune:
             if node in self.T_current:
-                self._delete_node(node)
+
+                #Reset infection time for the deleted node
+                self.G.nodes[node]['inf_time'] = math.inf
+
+                parent_node = self.T_current[node]
+                print({f"Node deleted: {node}"},file=f)
+
+                #Remove it from tree structure        
+                del self.T_current[node]
+
+                #Remove it from the dict of children
+                if parent_node in self.children_of_curr:
+                    if node in self.children_of_curr[parent_node]:
+                        self.children_of_curr[parent_node].remove(node)
+
+                if node in self.unobserved_leaves:
+                    self.unobserved_leaves.remove(node)
+
+                #Clear its own children record
+                if node in self.children_of_curr:
+                    del self.children_of_curr[node]
 
     def _add_new_path(self, new_path):
         """
@@ -308,7 +327,12 @@ class TreeSampler:
 
         #Now I remove the nodes that can be removed and their descendants as well
         self._remove_sequence_of_nodes(old_path_to_remove)
-        self._remove_sequence_of_nodes(list(descendants_to_remove.values()))
+
+        flat_desc = []
+        for desc in descendants_to_remove.values():
+            flat_desc.extend(desc)
+
+        self._remove_sequence_of_nodes(flat_desc)
 
         #Finding a new path for the target node
         new_path = self._calculate_new_path(target_node)
@@ -369,7 +393,7 @@ class TreeSampler:
         Returns:
             parent_node (int or None): The parent of the deleted node in the current feasible tree.
         """
-
+        
         parent_node = self.T_current[node]
 
         #Reset infection time for deleted node

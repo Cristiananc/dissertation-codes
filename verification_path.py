@@ -1,7 +1,9 @@
+#Disclaimer: this was moved to the tests folder but the file should be run in the main folder
 import networkx as nx
 import copy
 import matplotlib.pyplot as plt
 import math
+import pickle 
 
 #Importing from the function I created
 from sample.search_on_graphs import *
@@ -61,11 +63,13 @@ print(t_children)
 
 #Copying the partial information to use different sample sizes
 G_10000 = copy.deepcopy(G)
-G_100000 = copy.deepcopy(G)
+G_50000 = copy.deepcopy(G)
 
 #Start the sampling algorithm
 infected_nodes = [0,1]
-samplings_number = 1000
+
+print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
+print("--------------------------------------------------------------------------------------------")
 
 #Initialize class
 sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
@@ -74,22 +78,26 @@ sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
 f = open("verification_results.txt", "a")
 
 #Run
-sampling = sampler_1000.run(n_iterations=samplings_number)
-print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
-print("--------------------------------------------------------------------------------------------")
-print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
+print("Test with simple path example", file = f)
+sampling1 = sampler_1000.run(n_iterations=1000)
+print(f"Frequency of nodes for 1000 iterations: {nodes_proportion(G, sampling1)}", file = f)
 
 #ITERATIONS = 10000
 sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
-sampling = sampler_1000.run(n_iterations=10000)
-print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
-print("--------------------------------------------------------------------------------------------")
-print(f"Frequency of nodes: {nodes_proportion(G_10000, sampling)}")
+sampling2 = sampler_1000.run(n_iterations=10000)
+print(f"Frequency of nodes for 10000 iterations: {nodes_proportion(G_10000, sampling2)}", file = f)
 
 #ITERATIONS = 100000
-sampler_100000 = TreeSampler(G_100000, T_initial, t_children, infected_nodes)
+sampler_50000 = TreeSampler(G_50000, T_initial, t_children, infected_nodes)
+sampling3 = sampler_50000.run(n_iterations=50000)
+print(f"Frequency of nodes for 50000 iterations: {nodes_proportion(G_50000, sampling3)}", file = f)
 
-sampling = sampler_100000.run(n_iterations=100000)
-print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
-print("--------------------------------------------------------------------------------------------")
-print(f"Frequency of nodes: {nodes_proportion(G_100000, sampling)}")
+#Saving the sampling obtained
+sample_path = []
+sample_path.append(sampling1)
+sample_path.append(sampling2)
+sample_path.append(sampling3)
+
+#Saving the sampling obtained using pickle
+file_path = 'data/samples/verification_test_simple_path'
+pickle.dump(sample_path, open(file_path + '.pickle', 'wb'))
