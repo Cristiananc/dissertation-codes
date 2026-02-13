@@ -77,7 +77,7 @@ sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
 
 #Run
 print("Test with star graph II example")
-sampling1 = sampler_1000.run(n_iterations=100)
+sampling1 = sampler_1000.run(n_iterations=1000)
 print(f"Frequency of nodes for 1000 iterations: {nodes_proportion(G, sampling1)}")
 
 #ITERATIONS = 10000
