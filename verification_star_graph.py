@@ -1,7 +1,10 @@
+#Disclaimer: this was moved to the tests folder for organization
+# but the file should be run in the main folder
 import networkx as nx
 import copy
 import matplotlib.pyplot as plt
 import math
+import pickle
 
 #Importing from the function I created
 from sample.search_on_graphs import *
@@ -61,20 +64,38 @@ print(t_children)
 
 #Copying the partial information to use different sample sizes
 G_10000 = copy.deepcopy(G)
-G_100000 = copy.deepcopy(G)
+G_50000 = copy.deepcopy(G)
 
 #Start the sampling algorithm
 infected_nodes = [0,2]
 
+print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
+print("--------------------------------------------------------------------------------------------")
+
 #Initialize class
 sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
-sampling_1000 = sampler_1000.run(n_iterations=1000)
-print(f"Frequency of nodes: {nodes_proportion(G, sampling_1000)}")
 
-sampler_10000 = TreeSampler(G_10000, T_initial, t_children, infected_nodes)
-sampling_10000 = sampler_1000.run(n_iterations=10000)
-print(f"Frequency of nodes: {nodes_proportion(G_10000, sampling_10000)}")
+#Run
+print("Test with star graph example")
+sampling1 = sampler_1000.run(n_iterations=1000)
+print(f"Frequency of nodes for 1000 iterations: {nodes_proportion(G, sampling1)}")
 
-sampler_100000 = TreeSampler(G_100000, T_initial, t_children, infected_nodes)
-sampling_100000 = sampler_100000.run(n_iterations=50000)
-print(f"Frequency of nodes: {nodes_proportion(G_100000, sampling_100000)}")
+#ITERATIONS = 10000
+sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
+sampling2 = sampler_1000.run(n_iterations=10000)
+print(f"Frequency of nodes for 10000 iterations: {nodes_proportion(G_10000, sampling2)}")
+
+#ITERATIONS = 50000
+sampler_50000 = TreeSampler(G_50000, T_initial, t_children, infected_nodes)
+sampling3 = sampler_50000.run(n_iterations=50000)
+print(f"Frequency of nodes for 50000 iterations: {nodes_proportion(G_50000, sampling3)}")
+
+#Saving the sampling obtained
+sample_star_graph = []
+sample_star_graph.append(sampling1)
+sample_star_graph.append(sampling2)
+sample_star_graph.append(sampling3)
+
+#Saving the sampling obtained using pickle
+file_path = 'data/samples/verification_test_star_graph'
+pickle.dump(sample_star_graph, open(file_path + '.pickle', 'wb'))

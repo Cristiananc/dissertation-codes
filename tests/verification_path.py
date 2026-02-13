@@ -85,7 +85,7 @@ sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
 sampling2 = sampler_1000.run(n_iterations=10000)
 print(f"Frequency of nodes for 10000 iterations: {nodes_proportion(G_10000, sampling2)}")
 
-#ITERATIONS = 100000
+#ITERATIONS = 50000
 sampler_50000 = TreeSampler(G_50000, T_initial, t_children, infected_nodes)
 sampling3 = sampler_50000.run(n_iterations=50000)
 print(f"Frequency of nodes for 50000 iterations: {nodes_proportion(G_50000, sampling3)}")
