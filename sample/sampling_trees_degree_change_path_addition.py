@@ -153,7 +153,7 @@ class TreeSampler:
         Calculates the approximate degree of a given tree in the state space of trees.
         """
         
-        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T) + (len(self.infected_nodes) - 1)#*self.avg_degree
+        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T) + (len(self.infected_nodes) - 1)*0#*self.avg_degree
  
         return curr_degree_approx
 
