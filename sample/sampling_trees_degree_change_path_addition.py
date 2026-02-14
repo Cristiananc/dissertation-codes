@@ -161,7 +161,7 @@ class TreeSampler:
 
         for v in self.infected_nodes[1:]:
             for u in self.G.neighbors(v):
-                if self.G.nodes[u]['inf_time'] == self.G.nodes[u]['inf_time'] - 1 or self.G.nodes[u]['inf_time'] == math.inf:
+                if self.G.nodes[u]['inf_time'] == self.G.nodes[v]['inf_time'] - 1:
                     paths_n += 1
 
         return paths_n

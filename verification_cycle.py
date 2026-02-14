@@ -69,7 +69,7 @@ print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 
 sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
-sampling = sampler_1000.run(n_iterations=10000)
+sampling = sampler_1000.run(n_iterations=1000)
 print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
 
 #sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
