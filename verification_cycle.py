@@ -6,7 +6,7 @@ import math
 #Importing from the function I created
 from sample.search_on_graphs import *
 from sample.sampling_trees_degree_change_path_addition import TreeSampler
-from sample.helpers import nodes_proportion
+from sample.helpers import nodes_proportion, trees_proportion
 
 #Cycle
 e = [(0,1), (1,2), (2,3), (3,0)] #list of edges
@@ -60,7 +60,7 @@ print(t_children)
 
 #Copying the partial information to use different sample sizes
 G_10000 = copy.deepcopy(G)
-G_100000 = copy.deepcopy(G)
+G_50000 = copy.deepcopy(G)
 
 #Start the sampling algorithm
 infected_nodes = [0,2]
@@ -69,13 +69,22 @@ print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 
 sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
-sampling = sampler_1000.run(n_iterations=1000)
+sampling = sampler_1000.run(n_iterations=10000)
 print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
 
-sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
-sampling = sampler_1000.run(n_iterations=10000)
-print(f"Frequency of nodes: {nodes_proportion(G_10000, sampling)}")
+#sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
+#sampling = sampler_1000.run(n_iterations=10000)
+#print(f"Frequency of nodes: {nodes_proportion(G_10000, sampling)}")
 
-sampler_100000 = TreeSampler(G_100000, T_initial, t_children, infected_nodes)
-sampling = sampler_100000.run(n_iterations=100000)
-print(f"Frequency of nodes: {nodes_proportion(G_100000, sampling)}")
+#sampler_50000 = TreeSampler(G_50000, T_initial, t_children, infected_nodes)
+#sampling = sampler_50000.run(n_iterations=50000)
+#print(f"Frequency of nodes: {nodes_proportion(G_50000, sampling)}")
+
+#Verifying the probabilities of each of trees
+feasible_trees_list = [
+    {2: 3, 3: 0}, {2: 1, 1: 0}, {2: 1, 1: 0, 3: 0}, {2: 1, 1: 0, 3: 2},
+    {2: 3, 3: 0, 1: 2}, {2: 3, 3: 0, 1: 0}
+]
+
+print(f"Feasible tree list: {feasible_trees_list}")
+print(f" Probabilities of trees: {trees_proportion(feasible_trees_list, sampling)}")

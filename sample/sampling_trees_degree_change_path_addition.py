@@ -152,10 +152,19 @@ class TreeSampler:
         """
         Calculates the approximate degree of a given tree in the state space of trees.
         """
-        
-        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T) + (len(self.infected_nodes) - 1)*0#*self.avg_degree
+        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T) + self.number_of_paths()
  
         return curr_degree_approx
+    
+    def number_of_paths(self):
+        paths_n = 0
+
+        for v in self.infected_nodes[1:]:
+            for u in self.G.neighbors(v):
+                if self.G.nodes[u]['inf_time'] == self.G.nodes[u]['inf_time'] - 1 or self.G.nodes[u]['inf_time'] == math.inf:
+                    paths_n += 1
+
+        return paths_n
 
     def _choose_random_node(self, list_of_nodes):
         """
@@ -476,8 +485,13 @@ class TreeSampler:
                 else:
                     if G.nodes[v]['inf_time'] > G.nodes[u]['inf_time'] and T[v] != u:
                         failed_events +=1
+
+                    #Dealing with a case where both endpoints in a edge in G are 
+                    #infected at the same time
+                    elif G.nodes[v]['inf_time'] == G.nodes[u]['inf_time'] and u < v:
+                        if T.get(v) != u and T.get(u) != v:
+                            failed_events += 1
                 
-        
         log_beta = math.log(beta)
         log_beta_aux = math.log(1-beta)
         prob_log = succes_events * log_beta + failed_events * log_beta_aux
