@@ -5,7 +5,7 @@ import math
 
 #Importing from the function I created
 from sample.search_on_graphs import *
-from sample.sampling_trees_degree_change_path_addition import TreeSampler
+from sample.sampling_trees_degree_new_addition_jump import TreeSampler
 from sample.helpers import nodes_proportion
 
 #Complete graph K_4
@@ -53,8 +53,11 @@ nx.draw_networkx(G, pos, node_size = 800, node_color = node_color,)
 nx.draw_networkx_labels(G, state_pos, labels= infection_times, font_color='blue')
 plt.show()
 
+#Saving the partial information
+G_partial = copy.deepcopy(G)
+
 #Set an initial feasible tree for G given the observed values
-T_initial, t_children = feasible_tree(G, [0,3], flag=1)
+T_initial, t_children, path_list = feasible_tree(G, [0,3], flag=1)
 print(T_initial)
 print(t_children)
 
@@ -68,14 +71,14 @@ infected_nodes = [0,3]
 print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 
-sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
-sampling = sampler_1000.run(n_iterations=1000)
-print(f"Frequency of nodes: {nodes_proportion(G, sampling[500:])}")
+sampler_1000 = TreeSampler(G, G_partial, T_initial, t_children, infected_nodes, path_list, True)
+sampling = sampler_1000.run(n_iterations=20000)
+print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
 
-sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
-sampling = sampler_1000.run(n_iterations=10000)
-print(f"Frequency of nodes: {nodes_proportion(G_10000, sampling[500:])}")
+#sampler_10000 = TreeSampler(G_10000, G_partial, T_initial,t_children, infected_nodes, path_list, True)
+#sampling = sampler_1000.run(n_iterations=10000)
+#print(f"Frequency of nodes: {nodes_proportion(G_10000, sampling[500:])}")
 
-sampler_100000 = TreeSampler(G_100000, T_initial, t_children, infected_nodes)
-sampling = sampler_100000.run(n_iterations=100000)
-print(f"Frequency of nodes: {nodes_proportion(G_100000, sampling)}")
+#sampler_100000 = TreeSampler(G_100000, G_partial, T_initial, t_children, infected_nodes, path_list, True)
+#sampling = sampler_100000.run(n_iterations=100000)
+#print(f"Frequency of nodes: {nodes_proportion(G_100000, sampling)}")
