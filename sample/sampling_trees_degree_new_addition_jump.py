@@ -24,12 +24,14 @@ class TreeSampler:
     information available.
     """
     
-    def __init__(self, G, T_initial, children_of, infected_nodes, tree_paths):
+    def __init__(self, G, G_partial, T_initial, children_of, infected_nodes, tree_paths, flag_jump = False):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
         self.children_of_curr = copy.deepcopy(children_of)
         self.infected_nodes = list(infected_nodes)
         self.tree_paths = tree_paths 
+        self.flag_jump = flag_jump
+        self.G_partial = copy.deepcopy(G_partial)
 
         self.unobserved_leaves = []
         self.samplings_trees = [copy.deepcopy(T_initial)]
@@ -92,18 +94,17 @@ class TreeSampler:
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
-            #"""
-            print(file=f)
-            print(f"Current Tree: {self.T_current}", file=f)
-            print(file=f)
-            print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
-            print(file=f)
-            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
-            print(file=f)
-            print(f"Children: {self.children_of_curr}", file=f)
-            print(file=f)
-            print(f"Boundary of the tree: {self.boundary_T}", file=f)
-            #"""
+            if _ % 100 == 0:
+                print(file=f)
+                print(f"Current Tree: {self.T_current}", file=f)
+                print(file=f)
+                print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
+                print(file=f)
+                print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
+                print(file=f)
+                print(f"Children: {self.children_of_curr}", file=f)
+                print(file=f)
+                print(f"Boundary of the tree: {self.boundary_T}", file=f)
 
         print()
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
@@ -116,9 +117,42 @@ class TreeSampler:
         Handles the logic for proposing a move.
 
         Returns:
-            (bool, float) (tuple) -> (valid_proposal, q_ratio).
+            (float) -> q_ratio.
         """
+
+        if self.flag_jump == False:
+            return self._local_moves()
         
+        elif self.flag_jump == True and len(self.unobserved_leaves) == 0:
+            p = 0.05
+            p_jump = np.random.uniform()
+
+            if p_jump < p:
+                
+                q_curr_log = self._calculate_log_q_MFT(self.tree_paths)
+                G_partial = copy.deepcopy(self.G_partial)
+                self.T_current, self.children_of_curr, self.tree_paths = self._generate_new_minimal_tree()
+                self.G = copy.deepcopy(self.G_partial)
+
+                print(f"I am jumping to a new Minimal Feasible Tree: {self.T_current}", file = f)
+
+                self.G_partial = G_partial
+                q_prop_log = self._calculate_log_q_MFT(self.tree_paths)
+                self.boundary_T = self._get_boundary_of_tree()
+                self.unobserved_leaves = []
+
+                return q_curr_log - q_prop_log
+
+            else:
+                return self._local_moves()
+        
+        else:
+            return self._local_moves()
+        
+    def _local_moves(self):
+        """
+        Helper function that handles the local moves between trees.
+        """
         q_ratio = 0 # Default (log(1) = 0)
 
         #Calculating the degree of T_curr in the state space graph
@@ -133,15 +167,10 @@ class TreeSampler:
             node_delete = self._choose_random_node(self.unobserved_leaves)
             self._delete_node(node_delete)
 
-        elif rd_idx > len(self.unobserved_leaves) and rd_idx <= (len(self.unobserved_leaves) + len(self.boundary_T)):
+        else:
             #Addition
             self._add_neighbor()
             
-        else:
-            #Change of path
-            node_change_path = self._choose_random_node(self.infected_nodes[1:])
-            self._change_path(node_change_path) 
-
         #Calculating the degree of T_prop in the state space graph
         prop_degree_approx = self._calculate_degree_curr_tree()
         q_ratio = math.log(curr_degree_approx/ prop_degree_approx)
@@ -157,17 +186,17 @@ class TreeSampler:
  
         return curr_degree_approx
     
-    def calculate_log_q_MFT(self, tree_paths):
+    def _calculate_log_q_MFT(self, tree_paths):
         log_prob = 0
 
         for path in tree_paths:
             for node in path[:-1]:
-                log_prob += math.log(1/len(self.G.neighbors(node)))
+                log_prob += math.log(1/len(list(self.G.neighbors(node))))
 
         return log_prob
             
-    def generate_new_minimal_tree(self):
-        return feasible_tree(self.G, self.infected_nodes, flag = 1)
+    def _generate_new_minimal_tree(self):
+        return feasible_tree(self.G_partial, self.infected_nodes, flag = 1)
 
     def _choose_random_node(self, list_of_nodes):
         """
