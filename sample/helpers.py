@@ -1,6 +1,23 @@
 import math
 from functools import reduce
 
+def trees_proportion(tree_list, samplings):
+    """
+    Returns the proportion of each tree in a sampling.
+    """
+    tree_prop = {x: 0 for x in range(0, len(tree_list))}
+    for sample in samplings:
+        for i in range(0, len(tree_list)):
+            if tree_list[i] == sample:
+                tree_prop[i] += 1
+
+    n = len(samplings)
+
+    for tree in tree_prop:
+        tree_prop[tree] = tree_prop[tree]/ n
+
+    return tree_prop
+
 def nodes_proportion(G, samplings):
     """
     Returns the proportion of each node in a sampling of feasible trees in the format

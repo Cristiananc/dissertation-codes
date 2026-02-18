@@ -1,39 +1,43 @@
+#Disclaimer: this was moved to the tests folder for organization
+# but the file should be run in the main folder
 import networkx as nx
 import copy
 import matplotlib.pyplot as plt
 import math
+import pickle
 
 #Importing from the function I created
 from sample.search_on_graphs import *
-from sample.sampling_trees_degree_new_addition_jump import TreeSampler
-from sample.helpers import nodes_proportion, trees_proportion
+from sample.sampling_trees_local_moves import TreeSampler
+from sample.helpers import nodes_proportion
 
-#Cycle
-e = [(0,1), (1,2), (2,3), (3,0)] #list of edges
+#Start graph
+e = [(0,1), (0,2), (0,3)] #list of edges
 G = nx.Graph(e)
 
-pos = {0: [0,0], 1: [0,1], 2: [1,1], 3: [1,0]}
-fig = plt.figure(1, figsize=(3, 2.5))
+pos = {0: [0,0], 1: [1,0], 2: [0,0.5], 3: [-1,0]}
+fig = plt.figure(1, figsize=(5, 2.5))
 nx.draw(G, with_labels= True, pos=pos, node_size= 800)
 
-#The real epidemics
+#Setting attribute to account for the real epidemics in the graph
 attrs = {0: {"inf_time": 1, "status": 'recovered'}, 1: {"inf_time": 2, "status": 'recovered'},
-         2: {"inf_time": 3, "status": 'recovered'}, 3: {"inf_time": 2, "status": 'recovered'}}
+         2: {"inf_time": 2, "status": 'recovered'}, 3: {"inf_time": math.inf, "status": 'susceptible'}}
 nx.set_node_attributes(G, attrs)
 
-#Visualizing the graph
+#Visualizing the graph with their respectives infection times
 color_state_map = {'recovered': 'lime', 'susceptible': 'cyan'}
 node_color = [color_state_map[node[1]['status']] for node in G.nodes(data=True)]
 
 infection_times = nx.get_node_attributes(G, "inf_time")
-state_pos = {n: (x + 0.08, y + 0.03) for n, (x,y) in pos.items()}
+state_pos = {n: (x + 0.15, y + 0.02) for n, (x,y) in pos.items()}
 
-fig = plt.figure(1, figsize=(6, 4))
+fig = plt.figure(1, figsize=(6, 3))
 nx.draw_networkx(G, pos, node_size = 800, node_color = node_color,)
 
 nx.draw_networkx_labels(G, state_pos, labels= infection_times, font_color='blue')
 plt.show()
 
+#Partial information available
 #First we make a copy of G with the real infection times
 G_real = copy.deepcopy(G)
 
@@ -45,16 +49,13 @@ color_state_map = {'recovered': 'lime', 'susceptible': 'cyan', None: 'magenta'}
 node_color = [color_state_map[node[1]['status']] for node in G.nodes(data=True)]
 
 infection_times = nx.get_node_attributes(G, "inf_time")
-state_pos = {n: (x + 0.08, y + 0.03) for n, (x,y) in pos.items()}
+state_pos = {n: (x + 0.15, y + 0.02) for n, (x,y) in pos.items()}
 
-fig = plt.figure(1, figsize=(6, 4))
+fig = plt.figure(1, figsize=(6, 3))
 nx.draw_networkx(G, pos, node_size = 800, node_color = node_color,)
 
 nx.draw_networkx_labels(G, state_pos, labels= infection_times, font_color='blue')
 plt.show()
-
-#Saving the partial information
-G_partial = copy.deepcopy(G)
 
 #Set an initial feasible tree for G given the observed values
 T_initial, t_children, path_list = feasible_tree(G, [0,2], flag=1)
@@ -71,23 +72,30 @@ infected_nodes = [0,2]
 print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 
-sampler_1000 = TreeSampler(G, G_partial, T_initial, t_children, infected_nodes, path_list, True)
-sampling = sampler_1000.run(n_iterations=50000)
-print(f"Frequency of nodes: {nodes_proportion(G, sampling[1000:])}")
+#Initialize class
+sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
 
-#sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
-#sampling = sampler_1000.run(n_iterations=10000)
-#print(f"Frequency of nodes: {nodes_proportion(G_10000, sampling)}")
+#Run
+print("Test with star graph example")
+sampling1 = sampler_1000.run(n_iterations=1000)
+print(f"Frequency of nodes for 1000 iterations: {nodes_proportion(G, sampling1[50:])}")
 
-#sampler_50000 = TreeSampler(G_50000, T_initial, t_children, infected_nodes)
-#sampling = sampler_50000.run(n_iterations=50000)
-#print(f"Frequency of nodes: {nodes_proportion(G_50000, sampling)}")
+#ITERATIONS = 10000
+sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
+sampling2 = sampler_1000.run(n_iterations=10000)
+print(f"Frequency of nodes for 10000 iterations: {nodes_proportion(G_10000, sampling2[500:])}")
 
-#Verifying the probabilities of each of trees
-feasible_trees_list = [
-    {2: 3, 3: 0}, {2: 1, 1: 0}, {2: 1, 1: 0, 3: 0}, {2: 1, 1: 0, 3: 2},
-    {2: 3, 3: 0, 1: 2}, {2: 3, 3: 0, 1: 0}
-]
+#ITERATIONS = 50000
+sampler_50000 = TreeSampler(G_50000, T_initial, t_children, infected_nodes)
+sampling3 = sampler_50000.run(n_iterations=50000)
+print(f"Frequency of nodes for 50000 iterations: {nodes_proportion(G_50000, sampling3[2500:])}")
 
-print(f"Feasible tree list: {feasible_trees_list}")
-print(f" Probabilities of trees: {trees_proportion(feasible_trees_list, sampling)}")
+#Saving the sampling obtained
+sample_star_graph = []
+sample_star_graph.append(sampling1)
+sample_star_graph.append(sampling2)
+sample_star_graph.append(sampling3)
+
+#Saving the sampling obtained using pickle
+file_path = 'data/samples/verification_test_star_graph'
+pickle.dump(sample_star_graph, open(file_path + '.pickle', 'wb'))

@@ -1,7 +1,6 @@
 """
-Disclaimer: Code refactored with AI assistance, more specifically on code modularization and 
-verification of edge cases. All final implementation logic, and resulting analysis remain the 
-original work and responsability of the author.
+This file implements the logic for sampling feasible trees only using local moves 
+(addition and deletion of an node).
 """
 
 import math
@@ -11,7 +10,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import copy
 from tqdm import tqdm 
-from .search_on_graphs import find_k_length_path
 from epidemic_simulation.sir_simulation import fast_SIR
 from .helpers import check_feasibility_graphs
 
@@ -28,7 +26,7 @@ class TreeSampler:
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
         self.children_of_curr = copy.deepcopy(children_of)
-        self.infected_nodes = list(infected_nodes) 
+        self.infected_nodes = list(infected_nodes)
 
         self.unobserved_leaves = []
         self.samplings_trees = [copy.deepcopy(T_initial)]
@@ -91,18 +89,17 @@ class TreeSampler:
                 self.samplings_trees.append(copy.deepcopy(self.T_current))
                 self.log_likelihood_history.append(current_ll)
             
-            #"""
-            print(file=f)
-            print(f"Current Tree: {self.T_current}", file=f)
-            print(file=f)
-            print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
-            print(file=f)
-            print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
-            print(file=f)
-            print(f"Children: {self.children_of_curr}", file=f)
-            print(file=f)
-            print(f"Boundary of the tree: {self.boundary_T}", file=f)
-            #"""
+            if _ % 100 == 0:
+                print(file=f)
+                print(f"Current Tree: {self.T_current}", file=f)
+                print(file=f)
+                print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
+                print(file=f)
+                print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
+                print(file=f)
+                print(f"Children: {self.children_of_curr}", file=f)
+                print(file=f)
+                print(f"Boundary of the tree: {self.boundary_T}", file=f)
 
         print()
         print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
@@ -115,9 +112,9 @@ class TreeSampler:
         Handles the logic for proposing a move.
 
         Returns:
-            (bool, float) (tuple) -> (valid_proposal, q_ratio).
+            (float) -> q_ratio.
         """
-        
+
         q_ratio = 0 # Default (log(1) = 0)
 
         #Calculating the degree of T_curr in the state space graph
@@ -132,15 +129,10 @@ class TreeSampler:
             node_delete = self._choose_random_node(self.unobserved_leaves)
             self._delete_node(node_delete)
 
-        elif rd_idx > len(self.unobserved_leaves) and rd_idx <= (len(self.unobserved_leaves) + len(self.boundary_T)):
+        else:
             #Addition
             self._add_neighbor()
             
-        else:
-            #Change of path
-            node_change_path = self._choose_random_node(self.infected_nodes[1:])
-            self._change_path(node_change_path) 
-
         #Calculating the degree of T_prop in the state space graph
         prop_degree_approx = self._calculate_degree_curr_tree()
         q_ratio = math.log(curr_degree_approx/ prop_degree_approx)
@@ -152,20 +144,10 @@ class TreeSampler:
         """
         Calculates the approximate degree of a given tree in the state space of trees.
         """
-        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T) + self.number_of_paths()
+        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T)
  
         return curr_degree_approx
     
-    def number_of_paths(self):
-        paths_n = 0
-
-        for v in self.infected_nodes[1:]:
-            for u in self.G.neighbors(v):
-                if self.G.nodes[u]['inf_time'] == self.G.nodes[v]['inf_time'] - 1:
-                    paths_n += 1
-
-        return paths_n
-
     def _choose_random_node(self, list_of_nodes):
         """
         Chooses a random element uniformly from a list.
@@ -182,182 +164,7 @@ class TreeSampler:
 
         return random_node
 
-    def _calculate_new_path(self,source_node):
-        """
-        Finds a path of fixed length from a source node to a target node.
-
-        Args:
-            source_node (int): Source node for the s-t k-path search.
-
-        Returns:
-            new_path (list): s-t k-path found.
-        """
-
-        new_path = find_k_length_path(
-            self.G, source_node, 0, self.G.nodes[source_node]['inf_time'],flag=1)
-
-        return new_path
-    
-    def _get_descendants(self, node, descendants):
-        """
-        Finds the descendants of a given node.
-        
-        Args:
-            node (int): Source node for the search of descendants.
-            descendants (list): A list that updates recursively with the descedants of the given node.
-        """
-
-        if node in self.children_of_curr:
-            for child in self.children_of_curr[node]:
-                descendants.append(child)
-
-            for nodes in self.children_of_curr[node]:
-                self._get_descendants(nodes, descendants)
-
-    def _get_path_from_tree(self, parent):
-        """
-        Returns the path from a source node to the first observed node found in the tree.
-
-        Args:
-            parent (int): The parent of the source node.
-
-        Returns:
-            path (list): The path found in the tree.
-        """
-                
-        path = []
-        curr_node = parent
-        while True:
-            if curr_node not in self.infected_nodes:
-                path.append(curr_node)
-                curr_node = self.T_current[curr_node]
-            else:
-                return path
-            
-    def _get_nodes_to_remove(self, path):
-        """
-        Returns the nodes to be removed in the change of path operation.
-
-        Args:
-            path (list): The previous path of a given node in the tree.
-
-        Returns:
-            path_to_remove (list): The nodes in the path that can be removed.
-            descendants_to_remove (dict): A dict with descendants that should be removed for each 
-            node in the path_to_remove.
-        """
-        old_path_to_remove = []
-        descendants_to_remove = {}
-
-        for node in path:
-            descendants = []
-            self._get_descendants(node, descendants)
-
-            #If a node has an observed node as a descendant, we return
-            for child in descendants:
-                if child in self.infected_nodes:
-                    return old_path_to_remove, descendants_to_remove
-            else:
-                old_path_to_remove.append(node)
-                descendants_to_remove[node] = descendants
-        
-        return old_path_to_remove, descendants_to_remove
-
-    def _remove_sequence_of_nodes(self, nodes_to_prune):
-        """
-        Cleans up nodes being removed during a path change.
-
-        Args:
-            nodes_to_prune (list): A list of nodes that will be removed from the tree.
-
-        """
-        for node in nodes_to_prune:
-            if node in self.T_current:
-
-                #Reset infection time for the deleted node
-                self.G.nodes[node]['inf_time'] = math.inf
-
-                parent_node = self.T_current[node]
-                print({f"Node deleted: {node}"},file=f)
-
-                #Remove it from tree structure        
-                del self.T_current[node]
-
-                #Remove it from the dict of children
-                if parent_node in self.children_of_curr:
-                    if node in self.children_of_curr[parent_node]:
-                        self.children_of_curr[parent_node].remove(node)
-
-                if node in self.unobserved_leaves:
-                    self.unobserved_leaves.remove(node)
-
-                #Clear its own children record
-                if node in self.children_of_curr:
-                    del self.children_of_curr[node]
-
-    def _add_new_path(self, new_path):
-        """
-        Adds the new path found in the tree and the new children to the self.children_of_curr dict.
-
-        Args:
-            new_path (list): A list of nodes that represents the new path in the tree for a source node.
-
-        """    
-        
-        for i in range(len(new_path) - 1):
-            self.T_current[new_path[i]] = new_path[i + 1]
-
-        for j in range(len(new_path) - 1, 0, -1):
-            if new_path[j] not in self.children_of_curr:
-                self.children_of_curr[new_path[j]] = [new_path[j - 1]]
-            else:
-                self.children_of_curr[new_path[j]].append(new_path[j-1])
-
     # ---------- Operations function --------------- #
-    def _change_path(self, target_node):
-        """
-        This function performs a change of path operation.
-
-        Args:
-            target_node (int): The node for which the path in the current tree will be changed.
-        """
-        print("Changing path",file=f)        
-
-        old_parent = self.T_current[target_node]
-
-        #Access previous path from the tree
-        old_path = self._get_path_from_tree(old_parent)
-
-        #Remove the target node from the list of children of the old parent
-        self.children_of_curr[old_parent].remove(target_node)
-
-        #Finding out which nodes in the old path we can remove
-        old_path_to_remove, descendants_to_remove = self._get_nodes_to_remove(old_path)
-
-        #Now I remove the nodes that can be removed and their descendants as well
-        self._remove_sequence_of_nodes(old_path_to_remove)
-
-        flat_desc = []
-        for desc in descendants_to_remove.values():
-            flat_desc.extend(desc)
-
-        self._remove_sequence_of_nodes(flat_desc)
-
-        #Finding a new path for the target node
-        new_path = self._calculate_new_path(target_node)
-
-        if new_path is not None:
-            self._add_new_path(new_path)
-            
-            for n in new_path:
-                #If a leaf becomes part of a path for the new_node, it is no longer a leaf
-                if n in self.unobserved_leaves:
-                    self.unobserved_leaves.remove(n)
-
-        #Update the boundary of tree T
-        # This is a subproblem, for now we always recalculate the boundary for the new tree
-        self.boundary_T = self._get_boundary_of_tree()
-
     def _add_neighbor(self):
         """
         Performs an addition of a node operation.
