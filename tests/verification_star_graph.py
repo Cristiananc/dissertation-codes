@@ -8,7 +8,7 @@ import pickle
 
 #Importing from the function I created
 from sample.search_on_graphs import *
-from sample.sampling_trees_degree_change_path_addition import TreeSampler
+from sample.sampling_trees_local_moves import TreeSampler
 from sample.helpers import nodes_proportion
 
 #Start graph
@@ -58,7 +58,7 @@ nx.draw_networkx_labels(G, state_pos, labels= infection_times, font_color='blue'
 plt.show()
 
 #Set an initial feasible tree for G given the observed values
-T_initial, t_children = feasible_tree(G, [0,2], flag=1)
+T_initial, t_children, path_list = feasible_tree(G, [0,2], flag=1)
 print(T_initial)
 print(t_children)
 
@@ -78,17 +78,17 @@ sampler_1000 = TreeSampler(G, T_initial, t_children, infected_nodes)
 #Run
 print("Test with star graph example")
 sampling1 = sampler_1000.run(n_iterations=1000)
-print(f"Frequency of nodes for 1000 iterations: {nodes_proportion(G, sampling1)}")
+print(f"Frequency of nodes for 1000 iterations: {nodes_proportion(G, sampling1[50:])}")
 
 #ITERATIONS = 10000
 sampler_10000 = TreeSampler(G_10000, T_initial,t_children, infected_nodes)
 sampling2 = sampler_1000.run(n_iterations=10000)
-print(f"Frequency of nodes for 10000 iterations: {nodes_proportion(G_10000, sampling2)}")
+print(f"Frequency of nodes for 10000 iterations: {nodes_proportion(G_10000, sampling2[500:])}")
 
 #ITERATIONS = 50000
 sampler_50000 = TreeSampler(G_50000, T_initial, t_children, infected_nodes)
 sampling3 = sampler_50000.run(n_iterations=50000)
-print(f"Frequency of nodes for 50000 iterations: {nodes_proportion(G_50000, sampling3)}")
+print(f"Frequency of nodes for 50000 iterations: {nodes_proportion(G_50000, sampling3[2500:])}")
 
 #Saving the sampling obtained
 sample_star_graph = []
