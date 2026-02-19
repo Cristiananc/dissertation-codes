@@ -87,4 +87,4 @@ feasible_trees_list = [ {3: 1, 1: 0}, {3: 2, 2: 0}, {2: 3, 3: 1, 1: 0}, {2: 0, 3
 {2: 0, 3: 2, 1: 3}, {2: 0 , 3: 2, 1: 2}, {2: 0, 1: 0, 3: 2}, {1:0, 3:1, 2:1}]
 
 print(f"Feasible tree list: {feasible_trees_list}")
-print(f" Probabilities of trees: {trees_proportion(feasible_trees_list, sampling[])}")
+print(f" Probabilities of trees: {trees_proportion(feasible_trees_list, sampling)}")
