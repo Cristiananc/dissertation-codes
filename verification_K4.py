@@ -5,8 +5,8 @@ import math
 
 #Importing from the function I created
 from sample.search_on_graphs import *
-from sample.sampling_trees_degree_new_addition_jump import TreeSampler
-from sample.helpers import nodes_proportion
+from sample.sampling_trees_local_global_moves import TreeSampler
+from sample.helpers import nodes_proportion, trees_proportion
 
 #Complete graph K_4
 e = [(0,1), (1,2), (2,3), (3,0), (3,1), (2,0)] #list of edges
@@ -71,7 +71,7 @@ infected_nodes = [0,3]
 print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 
-sampler_1000 = TreeSampler(G, G_partial, T_initial, t_children, infected_nodes, path_list, True)
+sampler_1000 = TreeSampler(G, G_partial, T_initial, t_children, infected_nodes, path_list)
 sampling = sampler_1000.run(n_iterations=20000)
 print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
 
@@ -82,3 +82,9 @@ print(f"Frequency of nodes: {nodes_proportion(G, sampling)}")
 #sampler_100000 = TreeSampler(G_100000, G_partial, T_initial, t_children, infected_nodes, path_list, True)
 #sampling = sampler_100000.run(n_iterations=100000)
 #print(f"Frequency of nodes: {nodes_proportion(G_100000, sampling)}")
+
+feasible_trees_list = [ {3: 1, 1: 0}, {3: 2, 2: 0}, {2: 3, 3: 1, 1: 0}, {2: 0, 3: 1, 1:0},
+{2: 0, 3: 2, 1: 3}, {2: 0 , 3: 2, 1: 2}, {2: 0, 1: 0, 3: 2}, {1:0, 3:1, 2:1}]
+
+print(f"Feasible tree list: {feasible_trees_list}")
+print(f" Probabilities of trees: {trees_proportion(feasible_trees_list, sampling[])}")

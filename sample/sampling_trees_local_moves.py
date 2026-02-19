@@ -1,4 +1,8 @@
 """
+Disclaimer: Code refactored with AI assistance, more specifically on code modularization and 
+verification of edge cases. All final implementation logic, and resulting analysis remain the 
+original work and responsability of the author.
+
 This file implements the logic for sampling feasible trees only using local moves 
 (addition and deletion of an node).
 """

@@ -5,7 +5,7 @@ import math
 
 #Importing from the function I created
 from sample.search_on_graphs import *
-from sample.sampling_trees_degree_new_addition_jump import TreeSampler
+from sample.sampling_trees_local_global_moves import TreeSampler
 from sample.helpers import nodes_proportion, trees_proportion
 
 #Cycle
@@ -71,7 +71,7 @@ infected_nodes = [0,2]
 print(f"Real infection times: {nx.get_node_attributes(G_real, "inf_time")}")
 print("--------------------------------------------------------------------------------------------")
 
-sampler_1000 = TreeSampler(G, G_partial, T_initial, t_children, infected_nodes, path_list, True)
+sampler_1000 = TreeSampler(G, G_partial, T_initial, t_children, infected_nodes, path_list)
 sampling = sampler_1000.run(n_iterations=50000)
 print(f"Frequency of nodes: {nodes_proportion(G, sampling[1000:])}")
 
