@@ -24,23 +24,17 @@ class TreeSampler:
     information available.
     """
     
-    def __init__(self, G, G_partial, T_initial, children_of, infected_nodes, tree_paths, flag_jump = False):
+    def __init__(self, G, G_partial, T_initial, children_of, infected_nodes, tree_paths):
         self.G = G
         self.T_current = copy.deepcopy(T_initial)
         self.children_of_curr = copy.deepcopy(children_of)
         self.infected_nodes = list(infected_nodes)
         self.tree_paths = tree_paths 
-        self.flag_jump = flag_jump
         self.G_partial = copy.deepcopy(G_partial)
 
         self.unobserved_leaves = []
         self.samplings_trees = [copy.deepcopy(T_initial)]
         self.log_likelihood_history = []
-
-        sum_of_edges = 0
-        for i in self.G.degree():
-            sum_of_edges += i[1]
-        self.avg_degree = math.ceil((sum_of_edges / len(self.G.nodes)) - .5)
 
         self.boundary_T = self._get_boundary_of_tree()
                 

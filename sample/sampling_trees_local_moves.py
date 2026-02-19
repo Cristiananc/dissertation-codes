@@ -32,11 +32,6 @@ class TreeSampler:
         self.samplings_trees = [copy.deepcopy(T_initial)]
         self.log_likelihood_history = []
 
-        sum_of_edges = 0
-        for i in self.G.degree():
-            sum_of_edges += i[1]
-        self.avg_degree = math.ceil((sum_of_edges / len(self.G.nodes)) - .5)
-
         self.boundary_T = self._get_boundary_of_tree()
                 
     def run(self, n_iterations):
