@@ -166,7 +166,7 @@ class TreeSampler:
         #Calculating the degree of T_prop in the state space graph
         prop_degree_approx = self._calculate_degree_curr_tree()
         alpha_ratio = math.log(alpha_y) - math.log(alpha_x)
-        q_ratio = math.log(curr_degree_approx) - math.log(prop_degree_approx)
+        q_ratio = math.log(curr_degree_approx) - math.log(prop_degree_approx) + alpha_ratio
         print(f"q_ratio: {q_ratio}", file = f)
 
         return q_ratio
