@@ -113,16 +113,17 @@ class TreeSampler:
         Returns:
             (float) -> q_ratio.
         """
-
-        if self.flag_jump == False:
-            return self._local_moves()
         
-        elif self.flag_jump == True and len(self.unobserved_leaves) == 0:
-            p = 0.05
+        if len(self.unobserved_leaves) == 0:
+            p = 0.95
             p_jump = np.random.uniform()
 
             if p_jump < p:
-                
+                alpha_x = 0.95
+                alpha_y = 1
+                return self._local_moves(alpha_x, alpha_y)
+
+            else:
                 q_curr_log = self._calculate_log_q_MFT(self.tree_paths)
                 G_partial = copy.deepcopy(self.G_partial)
                 self.T_current, self.children_of_curr, self.tree_paths = self._generate_new_minimal_tree()
@@ -136,14 +137,11 @@ class TreeSampler:
                 self.unobserved_leaves = []
 
                 return q_curr_log - q_prop_log
-
-            else:
-                return self._local_moves()
         
         else:
             return self._local_moves()
         
-    def _local_moves(self):
+    def _local_moves(self, alpha_x=1, alpha_y=1):
         """
         Helper function that handles the local moves between trees.
         """
@@ -167,7 +165,8 @@ class TreeSampler:
             
         #Calculating the degree of T_prop in the state space graph
         prop_degree_approx = self._calculate_degree_curr_tree()
-        q_ratio = math.log(curr_degree_approx/ prop_degree_approx)
+        alpha_ratio = math.log(alpha_y) - math.log(alpha_x)
+        q_ratio = math.log(curr_degree_approx) - math.log(prop_degree_approx)
         print(f"q_ratio: {q_ratio}", file = f)
 
         return q_ratio
