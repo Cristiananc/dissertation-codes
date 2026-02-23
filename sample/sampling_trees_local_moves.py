@@ -1,4 +1,8 @@
 """
+Disclaimer: Code refactored with AI assistance, more specifically on code modularization and 
+verification of edge cases. All final implementation logic, and resulting analysis remain the 
+original work and responsability of the author.
+
 This file implements the logic for sampling feasible trees only using local moves 
 (addition and deletion of an node).
 """
@@ -31,11 +35,6 @@ class TreeSampler:
         self.unobserved_leaves = []
         self.samplings_trees = [copy.deepcopy(T_initial)]
         self.log_likelihood_history = []
-
-        sum_of_edges = 0
-        for i in self.G.degree():
-            sum_of_edges += i[1]
-        self.avg_degree = math.ceil((sum_of_edges / len(self.G.nodes)) - .5)
 
         self.boundary_T = self._get_boundary_of_tree()
                 

@@ -59,5 +59,3 @@ Sampling trees: 100%|███████████████████�
 
 Final Acceptance Rate: 59.79%
 Frequency of nodes for 50000 iterations: {0: 1.0, 1: 1.0, 2: 1.0, 3: 0.29946737963411296}
-
-

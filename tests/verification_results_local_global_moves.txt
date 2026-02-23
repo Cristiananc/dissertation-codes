@@ -1,0 +1,5 @@
+Test I: Cycle of size 4
+
+
+Test II: Complete graph K_4
+

@@ -1,0 +1,406 @@
+"""
+Disclaimer: Code refactored with AI assistance, more specifically on code modularization and 
+verification of edge cases. All final implementation logic, and resulting analysis remain the 
+original work and responsability of the author.
+"""
+
+import math
+import random as rd
+import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
+import copy
+from tqdm import tqdm 
+from .search_on_graphs import feasible_tree
+from epidemic_simulation.sir_simulation import fast_SIR
+from .helpers import check_feasibility_graphs
+
+#Set output prints to a txt file
+f = open("output.txt", "a")
+
+class TreeSampler:
+    """
+    MCMC Sampler for inferring infected nodes on a network with partial 
+    information available.
+    """
+    
+    def __init__(self, G, G_partial, T_initial, children_of, infected_nodes, tree_paths):
+        self.G = G
+        self.T_current = copy.deepcopy(T_initial)
+        self.children_of_curr = copy.deepcopy(children_of)
+        self.infected_nodes = list(infected_nodes)
+        self.tree_paths = tree_paths 
+        self.G_partial = copy.deepcopy(G_partial)
+
+        self.unobserved_leaves = []
+        self.samplings_trees = [copy.deepcopy(T_initial)]
+        self.log_likelihood_history = []
+
+        self.boundary_T = self._get_boundary_of_tree()
+                
+    def run(self, n_iterations):
+        """
+        This function executes the Metropolis-Hastings sampling loop.
+
+        Args:
+            n_iterations (int): The number of iterations of the loop.
+
+        Returns:
+            self.samplings_trees (list): List of states sampled.
+        """
+
+        if self.T_current == None: return None
+        
+        accepted_count = 0
+        self.beta = 0.3 #Initial value for Beta
+        
+        for _ in tqdm(range(n_iterations), desc="Sampling trees"):
+            if not self.T_current: break 
+            
+            # Capture full state for reversion
+            previous_children_of = copy.deepcopy(self.children_of_curr)
+            previous_T = copy.deepcopy(self.T_current)
+            previous_G = copy.deepcopy(self.G)
+            previous_leaves_list = list(self.unobserved_leaves)
+            previous_boundary_T = list(self.boundary_T)
+        
+            q_ratio = self._propose_next_state()
+
+            current_ll = self._prob_tree_log(previous_G, previous_T, self.beta)
+
+            alpha = self._compute_acceptance_prob(q_ratio, self.beta, previous_G, previous_T)
+            p_uniform = math.log(np.random.uniform())
+
+            if p_uniform < alpha:
+                #ACCEPT
+                accepted_count += 1
+                self.samplings_trees.append(copy.deepcopy(self.T_current))
+                self.log_likelihood_history.append(self._prob_tree_log(self.G, self.T_current, self.beta))
+
+            else:
+                #REJECT
+                self.G = previous_G
+                self.T_current = previous_T
+                self.unobserved_leaves = previous_leaves_list
+                self.children_of_curr = previous_children_of
+                self.boundary_T = previous_boundary_T
+
+                self.samplings_trees.append(copy.deepcopy(self.T_current))
+                self.log_likelihood_history.append(current_ll)
+            
+            if _ % 100 == 0:
+                print(file=f)
+                print(f"Current Tree: {self.T_current}", file=f)
+                print(file=f)
+                print(f"Unobserved leaves: {self.unobserved_leaves}",file=f)
+                print(file=f)
+                print(f"Current infection times: {nx.get_node_attributes(self.G, "inf_time")}",file=f)
+                print(file=f)
+                print(f"Children: {self.children_of_curr}", file=f)
+                print(file=f)
+                print(f"Boundary of the tree: {self.boundary_T}", file=f)
+
+        print()
+        print(f"Final Acceptance Rate: {accepted_count / n_iterations:.2%}")
+        return self.samplings_trees
+
+    # --------- Helper methods ------------ #
+
+    def _propose_next_state(self):
+        """
+        Handles the logic for proposing a move.
+
+        Returns:
+            (float) -> q_ratio.
+        """
+        
+        if len(self.unobserved_leaves) == 0:
+            p = 0.95
+            p_jump = np.random.uniform()
+
+            if p_jump < p:
+                alpha_x = 0.95
+                alpha_y = 1
+                return self._local_moves(alpha_x, alpha_y)
+
+            else:
+                q_curr_log = self._calculate_log_q_MFT(self.tree_paths)
+                G_partial = copy.deepcopy(self.G_partial)
+                self.T_current, self.children_of_curr, self.tree_paths = self._generate_new_minimal_tree()
+                self.G = copy.deepcopy(self.G_partial)
+
+                print(f"I am jumping to a new Minimal Feasible Tree: {self.T_current}", file = f)
+
+                self.G_partial = G_partial
+                q_prop_log = self._calculate_log_q_MFT(self.tree_paths)
+                self.boundary_T = self._get_boundary_of_tree()
+                self.unobserved_leaves = []
+
+                return q_curr_log - q_prop_log
+        
+        else:
+            return self._local_moves()
+        
+    def _local_moves(self, alpha_x=1, alpha_y=1):
+        """
+        Helper function that handles the local moves between trees.
+        """
+        q_ratio = 0 # Default (log(1) = 0)
+
+        #Calculating the degree of T_curr in the state space graph
+        curr_degree_approx = self._calculate_degree_curr_tree()
+        rd_idx = rd.randrange(1, curr_degree_approx + 1)
+
+        print(f"curr_degree: {curr_degree_approx}", file = f)
+        print(f"rd_idx: {rd_idx}", file = f)
+
+        if rd_idx <= len(self.unobserved_leaves):
+            #Deletion 
+            node_delete = self._choose_random_node(self.unobserved_leaves)
+            self._delete_node(node_delete)
+
+        else:
+            #Addition
+            self._add_neighbor()
+            
+        #Calculating the degree of T_prop in the state space graph
+        prop_degree_approx = self._calculate_degree_curr_tree()
+        alpha_ratio = math.log(alpha_y) - math.log(alpha_x)
+        q_ratio = math.log(curr_degree_approx) - math.log(prop_degree_approx) + alpha_ratio
+        print(f"q_ratio: {q_ratio}", file = f)
+
+        return q_ratio
+
+    def _calculate_degree_curr_tree(self):
+        """
+        Calculates the approximate degree of a given tree in the state space of trees.
+        """
+        curr_degree_approx = len(self.unobserved_leaves) + len(self.boundary_T)
+ 
+        return curr_degree_approx
+    
+    def _calculate_log_q_MFT(self, tree_paths):
+        log_prob = 0
+
+        for path in tree_paths:
+            for node in path[:-1]:
+                log_prob += math.log(1/len(list(self.G.neighbors(node))))
+
+        return log_prob
+            
+    def _generate_new_minimal_tree(self):
+        return feasible_tree(self.G_partial, self.infected_nodes, flag = 1)
+
+    def _choose_random_node(self, list_of_nodes):
+        """
+        Chooses a random element uniformly from a list.
+
+        Args:
+            list_of_nodes (list): List with nodes (integers).
+
+        Returns:
+            random_node (int): Random element from list_of_nodes.
+        """
+
+        rand_idx = rd.randrange(0, len(list_of_nodes))
+        random_node = list_of_nodes[rand_idx]
+
+        return random_node
+
+    # ---------- Operations function --------------- #
+    def _add_neighbor(self):
+        """
+        Performs an addition of a node operation.
+
+        """
+        new_edge =  self.boundary_T[rd.randrange(0, len(self.boundary_T))]
+        new_node = new_edge[1]
+        parent = new_edge[0]
+
+        print(f"New node added: {new_node}",file=f)
+        self.G.nodes[new_node]['inf_time'] = self.G.nodes[parent]['inf_time'] + 1
+
+        #Update state
+        self.T_current[new_node] = parent
+        
+        if parent in self.children_of_curr: self.children_of_curr[parent].append(new_node)
+        else: self.children_of_curr[parent] = [new_node]
+
+        self.unobserved_leaves.append(new_node)
+
+        #If the source was a leaf, it is not anymore
+        if parent in self.unobserved_leaves:
+            self.unobserved_leaves.remove(parent)
+
+        #Update of the boundary of T
+        #Remove all edges from boundary_T that point to the new node
+        self.boundary_T = [edge for edge in self.boundary_T if edge[1] != new_node]
+
+        #Adding the neighbors of the new node not in T
+        list_neigh = self.G.neighbors(new_node)
+        for v in list_neigh:
+            if self.G.nodes[v]['inf_time'] == math.inf:
+                self.boundary_T.append((new_node, v))
+
+    def _delete_node(self, node):
+        """
+        Performs a deletion of a node operation.
+
+        Args:
+            node (int): The node which will be deleted from the current feasible tree.
+
+        Returns:
+            parent_node (int or None): The parent of the deleted node in the current feasible tree.
+        """
+        
+        parent_node = self.T_current[node]
+
+        #Reset infection time for deleted node
+        self.G.nodes[node]['inf_time'] = math.inf
+        print({f"Node deleted: {node}"},file=f)
+        
+        if node in self.unobserved_leaves:
+            self.unobserved_leaves.remove(node)
+
+        del self.T_current[node]
+        self.children_of_curr[parent_node].remove(node)
+        
+        #Handling the case where the parent becomes a leaf
+        if len(self.children_of_curr[parent_node]) == 0:
+            if parent_node not in self.unobserved_leaves:
+                if parent_node not in self.infected_nodes:
+                    self.unobserved_leaves.append(parent_node)
+
+        
+        #Updating the boundary of T list
+        #Remove all edges (node, v) from boundary_T
+        self.boundary_T = [edge for edge in self.boundary_T if edge[0] != node]
+
+        for v in self.G.neighbors(node):
+            if self.G.nodes[v]['inf_time'] != math.inf:
+                self.boundary_T.append((v, node))
+
+        return parent_node
+
+    def _get_boundary_of_tree(self):
+        """
+        Returns the exact set of edges (u,v) where u is in the tree and v
+        is not infected (inf_time = inf)
+        """
+
+        boundary = []
+
+        #Every node currently in the transmission tree
+        nodes_in_T = set(self.T_current.keys())
+        nodes_in_T.add(0)
+
+        for u in nodes_in_T:
+            for v in self.G.neighbors(u):
+                if self.G.nodes[v]['inf_time'] == math.inf:
+                    boundary.append((u, v))
+        
+        return boundary
+
+    # ---------- Compute probabilities -------------------#
+    def _prob_tree_log(self, G, T, beta):
+        """
+        This function calculates the log-likelihood of a tree for a given infection rate.
+
+        Args:
+            G (networkx graph): Graph for which we will calculate the failed infection events.
+            T (list): The transmission tree for which we will compute the log-likelihood.
+            beta (float): Infection rate.
+
+        Returns:
+            prob_log (float): The log-likelihood for T for a fixed beta.
+        """
+
+        #Identify all nodes in the tree
+        nodes_in_tree = set()
+        nodes_in_tree.add(0)
+        for node,value in T.items():
+            nodes_in_tree.add(node)
+
+        if len(nodes_in_tree) <= 1:
+            return 0
+        
+        # Succes Events (V_T - 1)
+        succes_events = len(nodes_in_tree) - 1
+        failed_events = 0
+
+        for u in nodes_in_tree:
+            for v in G.neighbors(u):
+                if v not in nodes_in_tree:
+                    failed_events += 1
+                else:
+                    if G.nodes[v]['inf_time'] > G.nodes[u]['inf_time'] and T[v] != u:
+                        failed_events +=1
+
+                    #Dealing with a case where both endpoints in a edge in G are 
+                    #infected at the same time
+                    elif G.nodes[v]['inf_time'] == G.nodes[u]['inf_time'] and u < v:
+                        if T.get(v) != u and T.get(u) != v:
+                            failed_events += 1
+                
+        log_beta = math.log(beta)
+        log_beta_aux = math.log(1-beta)
+        prob_log = succes_events * log_beta + failed_events * log_beta_aux
+        
+        return prob_log
+    
+    def _compute_acceptance_prob(self, q_ratio, beta, previous_G, previous_T):
+        """
+        Calculates alpha using the log-likelihoods
+
+        Args:
+            q_ratio (float): Proposal distribution ratio.
+            beta (float): Infection rate.
+            previous_G (networkx graph): Graph G before proposal.
+            previos_T (list): Feasible tree before proposal.
+
+        Returns:
+            alpha (float): Acceptance probability for proposal.
+        """
+
+        prob_tree_prop = self._prob_tree_log(self.G, self.T_current, beta)
+        prob_tree_curr = self._prob_tree_log(previous_G, previous_T, beta)
+
+        # Alpha = (Log P_new - Log P_old) + Log Q_ratio
+        alpha_aux = prob_tree_prop - prob_tree_curr + q_ratio
+
+        alpha = min(0, alpha_aux) 
+        return alpha
+    
+    # ---------------- Visualise results ------------------------- #
+    def _trace_plot_log_likelihood(self):
+        """
+        Plots the trace plot for the log likelihood of the samplings.
+        """
+        if len(self.log_likelihood_history) <= 1:
+            print("No valid sampling has been performed yet!")
+        else:
+            plt.figure(figsize=(10, 5))
+            plt.plot(self.log_likelihood_history)
+            plt.xlabel("Iteration")
+            plt.ylabel("Log-Likelihood")
+            plt.show()
+    
+    # ------------- Performs Naive Sampling ---------------- #
+    def naive_sampling(G, sampling_number, observed_nodes, initial_infecteds):
+        samplings = []
+        G_mutable = copy.deepcopy(G)
+
+        while len(samplings) < sampling_number:
+
+            p = np.random.uniform()
+
+            #In place modification of G
+            fast_SIR(G_mutable, initial_infecteds, p)
+
+            if check_feasibility_graphs(G, G_mutable, observed_nodes):
+                all_nodes = nx.get_node_attributes(G_mutable, "inf_time")
+                nodes_infected = [node for node, inf_time in all_nodes.items() if inf_time < math.inf]
+
+                samplings.append(nodes_infected)
+
+        return samplings
