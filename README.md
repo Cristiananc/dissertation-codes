@@ -6,14 +6,14 @@ This repository contains all the code necessary to reproduce the results in the 
 All the required packages can be found in the file "requirements.txt".
 
 #### Repository Structure
-`data/`: 
+`data/`: Contains the sampling outputs for each graph used in the tests.
 
-`epidemic_simulation/`:
+`epidemic_simulation/`: Contains the implementation of the SIR (Susceptible-Infected-Recovered) network model.
 
-`notebooks/`:
+`notebooks/`: Contains the Jupyter notebooks used to generate the results and figures presented in the dissertation.
 
-`sample/`:
+`sample/`: Contains the `TreeSampler` class, which implements the Metropolis-Hastings algorithm for sampling trees.
 
-`tests/`:
+`tests/`: Contains the tests for the Metropolis-Hastings implementation.
 
 `visualization/`: Contains auxiliary functions to visualize the graphs with partial information on infection times organized by a color scheme.
