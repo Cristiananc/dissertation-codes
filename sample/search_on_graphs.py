@@ -10,7 +10,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
     #Disclaimer: Code refactored with AI assistance.
 
     # Base Case: Sucess
-    #If the current node is the target node and the length of the path - 1 is k, we have found
+    #If the current node is the target node and the length of the path is k, we have found
     #a desired path 
     if v == t and len(path) == k:
         return path
@@ -88,7 +88,7 @@ def DFS(G, v, t,k, path, visited, flag=0):
     # Backtracking
     #The lines below deals with the process of backtracking in the search
     visited[v] = False
-    # Only reset inf_time if We changed it in this specific call
+    # Only reset inf_time if we changed it in this specific call
     if reset_inf_time:
         G.nodes[v]['inf_time'] = math.inf
 
